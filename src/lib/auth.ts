@@ -15,6 +15,7 @@ export const auth = betterAuth({
       session: schema.session,
       account: schema.account,
       verification: schema.verification,
+      rateLimit: schema.rateLimit,
     },
   }),
   emailAndPassword: {
@@ -37,6 +38,16 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       role: { type: "string", input: false, defaultValue: "subscriber" },
+    },
+  },
+  // Limits for requests to /api/auth/*, stored in Postgres so they're shared
+  // by every server instance (on by default in production only)
+  rateLimit: {
+    storage: "database",
+    customRules: {
+      "/sign-in/email": { window: 60, max: 5 },
+      "/request-password-reset": { window: 15 * 60, max: 5 },
+      "/reset-password": { window: 15 * 60, max: 10 },
     },
   },
   plugins: [nextCookies()],

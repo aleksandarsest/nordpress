@@ -42,6 +42,10 @@ Either way, files are served at `/uploads/...` with long-lived cache headers, so
 
 Nordpress sends email for password resets ("Lost your password?" on the login screen, and **Send Reset Link** on each user in the admin). Set `SMTP_URL` to any SMTP provider (Postmark, Resend, SendGrid, Amazon SES, Mailgun, your own server) and optionally `MAIL_FROM`. Without `SMTP_URL`, emails are written to the server log, which is handy in development.
 
+## Rate limits
+
+Logins (per IP and per account), password reset requests, Better Auth's own endpoints and the site chat are rate limited. Counters live in Postgres (`rate_limits` and `rate_limit` tables), so the limits hold across any number of server instances without Redis. Set `RATE_LIMIT_STORE=memory` to keep them in process memory on a single server. Client IPs come from `X-Forwarded-For`, so run behind a proxy that sets it.
+
 ## Scripts
 
 - `pnpm dev`: development server

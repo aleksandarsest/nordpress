@@ -10,7 +10,7 @@ import { email, type FormState, formError, password, str } from "@/lib/form";
 import { installSite, isInstalled } from "@/lib/install";
 import { getSettings, SETTINGS_TAG } from "@/lib/options";
 import { POSTS_TAG } from "@/lib/posts";
-import { rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { TERMS_TAG } from "@/lib/terms";
 
 // Only allow same-site relative redirects after login
@@ -22,6 +22,24 @@ export async function login(
   _: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  // Server-side sign-in skips Better Auth's HTTP rate limits, so limit here:
+  // per address (spraying) and per account (guessing one password)
+  const h = await headers();
+  const account = str(formData, "email").trim().toLowerCase();
+  const [byIp, byAccount] = await Promise.all([
+    rateLimit(`login:ip:${clientIp(h)}`, 20, 15 * 60_000),
+    account
+      ? rateLimit(`login:account:${account}`, 10, 15 * 60_000)
+      : Promise.resolve({ ok: true, retryAfterMs: 0 }),
+  ]);
+  if (!byIp.ok || !byAccount.ok) {
+    const minutes = Math.ceil(
+      Math.max(byIp.retryAfterMs, byAccount.retryAfterMs) / 60_000,
+    );
+    return {
+      error: `Too many login attempts. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    };
+  }
   try {
     await auth.api.signInEmail({
       body: {
@@ -111,11 +129,11 @@ export async function requestPasswordReset(
     return { error: "Please enter a valid email address." };
 
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = clientIp(h);
   // Same answer either way, so the form can't be used to find accounts
   if (
-    !rateLimit(`reset:${ip}`, 5, 15 * 60_000).ok ||
-    !rateLimit(`reset:${address}`, 3, 60 * 60_000).ok
+    !(await rateLimit(`reset:${ip}`, 5, 15 * 60_000)).ok ||
+    !(await rateLimit(`reset:${address}`, 3, 60 * 60_000)).ok
   ) {
     return { message: RESET_SENT };
   }

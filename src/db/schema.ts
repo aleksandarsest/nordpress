@@ -104,6 +104,28 @@ export const verification = pgTable("verification", {
   ...timestamps,
 });
 
+// Better Auth's own request limits (login, sign-up endpoints)
+export const rateLimit = pgTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+
+// Fixed-window counters shared by every server instance (lib/rate-limit.ts)
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").notNull(),
+    windowStart: bigint("window_start", { mode: "number" }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.key, t.windowStart] }),
+    index("rate_limits_window_idx").on(t.windowStart),
+  ],
+);
+
 // ---------------------------------------------------------------------------
 // Content
 // ---------------------------------------------------------------------------

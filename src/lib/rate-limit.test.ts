@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rateLimit } from "./rate-limit";
+import { memoryRateLimit as rateLimit } from "./rate-limit";
 
 describe("rateLimit", () => {
   it("allows up to the limit within the window, then blocks", () => {

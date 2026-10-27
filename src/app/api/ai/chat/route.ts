@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const limited = rateLimit(
+  const limited = await rateLimit(
     `chat:${ip}`,
     PER_VISITOR.limit,
     PER_VISITOR.windowMs,
