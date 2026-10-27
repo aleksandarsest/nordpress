@@ -13,6 +13,7 @@ import {
   recordUsage,
   toAiError,
 } from "./client";
+import { withGuidance } from "./voice";
 
 // ---------------------------------------------------------------------------
 // Drafting a form from a description
@@ -76,7 +77,7 @@ export async function draftForm(
         effort: "low",
         format: betaZodOutputFormat(DraftSchema),
       },
-      system: DRAFT_SYSTEM,
+      system: withGuidance(DRAFT_SYSTEM, ctx.settings),
       messages: [
         { role: "user", content: `<description>\n${prompt}\n</description>` },
       ],

@@ -16,6 +16,7 @@ import {
   recordUsage,
   toAiError,
 } from "../ai/client";
+import { siteGuidance } from "../ai/voice";
 import { formatInZone } from "../dates";
 import { rateLimit } from "../rate-limit";
 import type { Viewer } from "../session";
@@ -70,7 +71,12 @@ How to work:
     // Changes daily, so it sits after the cached prefix
     {
       type: "text" as const,
-      text: `Today is ${today} (${ctx.settings.timezone}). The site is at ${siteUrl("/")}.`,
+      text: [
+        `Today is ${today} (${ctx.settings.timezone}). The site is at ${siteUrl("/")}.`,
+        siteGuidance(ctx.settings),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
     },
   ];
 }

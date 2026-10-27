@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { aiConfigured } from "@/lib/ai/client";
 import { embeddingsConfigured, indexStatus } from "@/lib/ai/embeddings";
 import { FEATURE_LABELS, usageSummary } from "@/lib/ai/usage";
@@ -98,6 +99,38 @@ export default async function AiSettingsPage() {
           someone uses an AI feature (or uploads an image, if automatic alt text
           is on).
         </p>
+        <fieldset className="grid gap-3 border-t pt-6">
+          <legend className="mb-2 font-semibold text-base">Brand voice</legend>
+          <p className="text-muted-foreground text-xs">
+            Every AI feature that writes for the site follows these: the writing
+            assistant, suggestions, form drafts, the site chat and the admin
+            assistant.
+          </p>
+          <div className="grid gap-1.5">
+            <Label htmlFor="site_about">About the site</Label>
+            <Textarea
+              id="site_about"
+              name="site_about"
+              rows={3}
+              maxLength={4000}
+              defaultValue={s.siteAbout}
+              placeholder="A family-run bakery in Ljubljana. We sell sourdough and pastries and teach weekend baking classes to beginners."
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="brand_voice">Voice and style guide</Label>
+            <Textarea
+              id="brand_voice"
+              name="brand_voice"
+              rows={5}
+              maxLength={4000}
+              defaultValue={s.brandVoice}
+              placeholder={
+                "Warm, plain and practical; write like a friendly baker, not a marketer.\nUse British spelling. Short paragraphs.\nNever promise health benefits. Say “classes”, not “workshops”."
+              }
+            />
+          </div>
+        </fieldset>
         <fieldset className="grid gap-3 border-t pt-6">
           <legend className="mb-2 font-semibold text-base">Site chat</legend>
           <Label className="font-normal">

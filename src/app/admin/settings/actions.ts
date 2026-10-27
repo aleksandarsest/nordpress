@@ -164,6 +164,8 @@ const ai = z.object({
   aiModel: z.enum(Object.keys(AI_MODELS) as [AiModel, ...AiModel[]]),
   chatEnabled: z.boolean(),
   chatDailyLimit: z.number().int().min(1).max(100_000),
+  siteAbout: z.string().trim().max(4000),
+  brandVoice: z.string().trim().max(4000),
 });
 
 export async function saveAiAction(
@@ -178,6 +180,8 @@ export async function saveAiAction(
         aiModel: str(formData, "ai_model"),
         chatEnabled: formData.get("chat_enabled") === "on",
         chatDailyLimit: Number(str(formData, "chat_daily_limit")),
+        siteAbout: str(formData, "site_about"),
+        brandVoice: str(formData, "brand_voice"),
       }),
     );
     return { message: "Settings saved." };

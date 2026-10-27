@@ -14,6 +14,7 @@ import {
   toAiError,
 } from "./client";
 import { retrievePassages } from "./search";
+import { withGuidance } from "./voice";
 
 export const chatRequest = z.object({
   messages: z
@@ -90,7 +91,10 @@ export async function* streamChat(
       model: ctx.model,
       max_tokens: 4000,
       output_config: { effort: "low" },
-      system: systemPrompt(ctx.settings.title, ctx.settings.tagline),
+      system: withGuidance(
+        systemPrompt(ctx.settings.title, ctx.settings.tagline),
+        ctx.settings,
+      ),
       messages: [
         ...history,
         {

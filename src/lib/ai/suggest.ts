@@ -11,6 +11,7 @@ import {
   recordUsage,
   toAiError,
 } from "./client";
+import { withGuidance } from "./voice";
 
 const SuggestionSchema = z.object({
   titles: z
@@ -73,7 +74,7 @@ export async function suggestForPost(
         effort: "low",
         format: betaZodOutputFormat(SuggestionSchema),
       },
-      system: SYSTEM,
+      system: withGuidance(SYSTEM, ctx.settings),
       messages: [
         {
           role: "user",

@@ -6,6 +6,7 @@ import {
   recordUsage,
   toAiError,
 } from "./client";
+import { withGuidance } from "./voice";
 import {
   buildWriteMessage,
   WRITE_SYSTEM,
@@ -33,7 +34,7 @@ export async function* streamWrite(
       model: ctx.model,
       max_tokens: 16000,
       output_config: { effort: "medium" },
-      system: WRITE_SYSTEM,
+      system: withGuidance(WRITE_SYSTEM, ctx.settings),
       messages: [{ role: "user", content: buildWriteMessage(req) }],
       ...fallbackParams(ctx.model),
     });
