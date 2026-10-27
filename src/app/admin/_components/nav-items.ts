@@ -1,0 +1,158 @@
+import { type Actor, type Capability, hasCap } from "@/lib/capabilities";
+
+export type NavItem = {
+  label: string;
+  href: string;
+  icon:
+    | "dashboard"
+    | "posts"
+    | "media"
+    | "pages"
+    | "comments"
+    | "plugins"
+    | "tools"
+    | "users"
+    | "profile"
+    | "settings";
+  badge?: number;
+  children?: { label: string; href: string }[];
+};
+
+type NavDef = Omit<NavItem, "children"> & {
+  cap: Capability;
+  children?: { label: string; href: string; cap: Capability }[];
+};
+
+const NAV: NavDef[] = [
+  { label: "Dashboard", href: "/admin", icon: "dashboard", cap: "read" },
+  {
+    label: "Posts",
+    href: "/admin/posts",
+    icon: "posts",
+    cap: "edit_posts",
+    children: [
+      { label: "All Posts", href: "/admin/posts", cap: "edit_posts" },
+      { label: "Add New Post", href: "/admin/posts/new", cap: "edit_posts" },
+      {
+        label: "Categories",
+        href: "/admin/categories",
+        cap: "manage_categories",
+      },
+      { label: "Tags", href: "/admin/tags", cap: "manage_categories" },
+    ],
+  },
+  {
+    label: "Media",
+    href: "/admin/media",
+    icon: "media",
+    cap: "upload_files",
+  },
+  {
+    label: "Pages",
+    href: "/admin/pages",
+    icon: "pages",
+    cap: "edit_pages",
+    children: [
+      { label: "All Pages", href: "/admin/pages", cap: "edit_pages" },
+      {
+        label: "Add New Page",
+        href: "/admin/posts/new?type=page",
+        cap: "edit_pages",
+      },
+    ],
+  },
+  {
+    label: "Comments",
+    href: "/admin/comments",
+    icon: "comments",
+    cap: "moderate_comments",
+  },
+  {
+    label: "Plugins",
+    href: "/admin/plugins",
+    icon: "plugins",
+    cap: "manage_options",
+  },
+  {
+    label: "Users",
+    href: "/admin/users",
+    icon: "users",
+    cap: "list_users",
+    children: [
+      { label: "All Users", href: "/admin/users", cap: "list_users" },
+      { label: "Add New User", href: "/admin/users/new", cap: "create_users" },
+      { label: "Profile", href: "/admin/profile", cap: "read" },
+    ],
+  },
+  { label: "Profile", href: "/admin/profile", icon: "profile", cap: "read" },
+  {
+    label: "Settings",
+    href: "/admin/settings",
+    icon: "settings",
+    cap: "manage_options",
+    children: [
+      { label: "General", href: "/admin/settings", cap: "manage_options" },
+      {
+        label: "Reading",
+        href: "/admin/settings/reading",
+        cap: "manage_options",
+      },
+      {
+        label: "Discussion",
+        href: "/admin/settings/discussion",
+        cap: "manage_options",
+      },
+      {
+        label: "Permalinks",
+        href: "/admin/settings/permalinks",
+        cap: "manage_options",
+      },
+      { label: "AI", href: "/admin/settings/ai", cap: "manage_options" },
+    ],
+  },
+];
+
+export type ToolPage = { plugin: string; path: string; title: string };
+
+export function navFor(
+  actor: Actor,
+  pendingComments = 0,
+  tools: ToolPage[] = [],
+): NavItem[] {
+  const canListUsers = hasCap(actor, "list_users");
+  // Plugin pages appear under Tools, as in WordPress
+  const toolsItem: NavDef[] = tools.length
+    ? [
+        {
+          label: "Tools",
+          href: `/admin/tools/${tools[0].plugin}/${tools[0].path}`,
+          icon: "tools",
+          cap: "read",
+          children: tools.map((t) => ({
+            label: t.title,
+            href: `/admin/tools/${t.plugin}/${t.path}`,
+            cap: "read",
+          })),
+        },
+      ]
+    : [];
+  const items = [...NAV];
+  items.splice(
+    items.findIndex((i) => i.icon === "settings"),
+    0,
+    ...toolsItem,
+  );
+  return items
+    .filter((item) => hasCap(actor, item.cap))
+    .filter((item) => !(item.icon === "profile" && canListUsers))
+    .map(({ cap: _cap, children, ...item }) => ({
+      ...item,
+      badge:
+        item.icon === "comments" && pendingComments
+          ? pendingComments
+          : undefined,
+      children: children
+        ?.filter((c) => hasCap(actor, c.cap))
+        .map(({ cap: _c, ...c }) => c),
+    }));
+}

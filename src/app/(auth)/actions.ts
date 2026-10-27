@@ -1,0 +1,99 @@
+"use server";
+
+import { APIError } from "better-auth/api";
+import { updateTag } from "next/cache";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { auth, createUserWithPassword } from "@/lib/auth";
+import { email, type FormState, formError, password, str } from "@/lib/form";
+import { installSite, isInstalled } from "@/lib/install";
+import { getSettings, SETTINGS_TAG } from "@/lib/options";
+import { POSTS_TAG } from "@/lib/posts";
+import { TERMS_TAG } from "@/lib/terms";
+
+// Only allow same-site relative redirects after login
+function safeRedirect(target: string) {
+  return target.startsWith("/") && !target.startsWith("//") ? target : "/admin";
+}
+
+export async function login(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  try {
+    await auth.api.signInEmail({
+      body: {
+        email: str(formData, "email"),
+        password: str(formData, "password"),
+        rememberMe: formData.get("remember") === "on",
+      },
+      headers: await headers(),
+    });
+  } catch (error) {
+    if (error instanceof APIError) {
+      return { error: "The email address or password is incorrect." };
+    }
+    return formError(error);
+  }
+  redirect(safeRedirect(str(formData, "redirect_to")));
+}
+
+export async function logout() {
+  await auth.api.signOut({ headers: await headers() });
+  redirect("/login?loggedout=1");
+}
+
+const registerSchema = z.object({
+  name: z.string().trim().min(1, "Please enter your name."),
+  email,
+  password,
+});
+
+export async function register(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const settings = await getSettings();
+  if (!settings.usersCanRegister)
+    return { error: "User registration is currently not allowed." };
+  try {
+    const input = registerSchema.parse(Object.fromEntries(formData));
+    await createUserWithPassword({ ...input, role: settings.defaultRole });
+    await auth.api.signInEmail({ body: input, headers: await headers() });
+  } catch (error) {
+    return formError(error);
+  }
+  redirect("/admin");
+}
+
+const installSchema = z.object({
+  title: z.string().trim().min(1, "Please enter a site title."),
+  name: z.string().trim().min(1, "Please enter a username."),
+  email,
+  password,
+});
+
+export async function install(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (await isInstalled()) redirect("/login");
+  try {
+    const input = installSchema.parse(Object.fromEntries(formData));
+    await installSite({
+      ...input,
+      blogPublic: formData.get("blog_public") !== "on",
+    });
+    await auth.api.signInEmail({
+      body: { email: input.email, password: input.password },
+      headers: await headers(),
+    });
+  } catch (error) {
+    return formError(error);
+  }
+  updateTag(SETTINGS_TAG);
+  updateTag(POSTS_TAG);
+  updateTag(TERMS_TAG);
+  redirect("/admin?installed=1");
+}
