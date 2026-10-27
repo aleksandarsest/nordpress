@@ -72,7 +72,8 @@ src/
   plugins/       installed plugins (one folder each) and the registry
   lib/themes/    theme contract, active theme and theme options
   lib/forms/     form fields, validation, submissions, embeds and CSV
-  lib/mcp/       MCP server for AI agents: tools, policy and audit log
+  lib/agent/     agent tools (shared by MCP and the assistant), previews, audit log, assistant loop
+  lib/mcp/       MCP server for outside agents
   themes/        installed themes (classic, nord) and the registry
     uploads/     serves uploaded files from UPLOADS_DIR
     feed/        RSS 2.0
@@ -175,6 +176,19 @@ export default definePlugin({
 Hooks run in priority order (lower first, default 10). An error in one plugin is logged and skipped; it never breaks the page or the other plugins. Use `api.defer()` for slow work so it runs after the response. Plugins can declare their own hooks by augmenting `ActionHooks` / `FilterHooks` in `src/lib/plugins/types.ts`.
 
 Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
+
+## Admin assistant
+
+**Assistant** in the admin is Claude working on the site for you: "what's waiting for me?", "draft a post announcing the new contact form", "find posts with no excerpt and suggest one for each", "summarize this week's form responses".
+
+It uses the same tools as outside agents (below), with your own permissions:
+
+- **Lookups run straight away** and show up as short activity lines.
+- **Every change is proposed first.** Creating, editing or trashing content and moderating or replying to comments appear as a card with the change spelled out: fields before and after, the full body before and after, and a warning when it touches the live site. Nothing happens until you choose **Approve**; **Decline** tells Claude it was not done.
+- **Visitor text is data.** Comments and form responses can contain anything; Claude is told never to follow instructions in them, and the approval step means a planted instruction can't change the site by itself.
+- Changes are recorded in the agent activity log as "Admin assistant". Each turn is capped at 12 model calls, with up to 300 a day per user, and the usage shows under **Settings → AI**.
+
+The conversation stays in your browser tab and is sent back unchanged each turn, so prompt caching and the model's reasoning carry over. **New conversation** clears it.
 
 ## AI agents (MCP)
 

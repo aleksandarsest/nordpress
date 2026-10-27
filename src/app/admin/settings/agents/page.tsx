@@ -12,8 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { recentAgentActions } from "@/lib/agent/audit";
 import { formatInZone } from "@/lib/dates";
-import { recentAgentActions } from "@/lib/mcp/audit";
 import { getSettings } from "@/lib/options";
 import { requireViewer } from "@/lib/session";
 import { siteUrl } from "@/lib/site-url";

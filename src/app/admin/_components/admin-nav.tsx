@@ -10,6 +10,7 @@ import {
   Pin,
   Plug,
   Settings,
+  Sparkles,
   User,
   Users,
   Wrench,
@@ -21,6 +22,7 @@ import type { NavItem } from "./nav-items";
 
 const ICONS = {
   dashboard: Gauge,
+  assistant: Sparkles,
   posts: Pin,
   media: Image,
   pages: File,

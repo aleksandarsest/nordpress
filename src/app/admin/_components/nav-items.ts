@@ -5,6 +5,7 @@ export type NavItem = {
   href: string;
   icon:
     | "dashboard"
+    | "assistant"
     | "posts"
     | "media"
     | "pages"
@@ -27,6 +28,12 @@ type NavDef = Omit<NavItem, "children"> & {
 
 const NAV: NavDef[] = [
   { label: "Dashboard", href: "/admin", icon: "dashboard", cap: "read" },
+  {
+    label: "Assistant",
+    href: "/admin/assistant",
+    icon: "assistant",
+    cap: "edit_posts",
+  },
   {
     label: "Posts",
     href: "/admin/posts",
