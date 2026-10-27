@@ -32,6 +32,43 @@ pnpm dev
 
 Open http://localhost:3000. You'll be sent to `/install` to create the site and its first administrator.
 
+## Self-hosting
+
+### Docker
+
+Nordpress and PostgreSQL (with pgvector) in two containers:
+
+```bash
+git clone https://github.com/aleksandarsest/nordpress.git && cd nordpress
+cat > .env <<EOF
+SITE_URL=https://example.com
+BETTER_AUTH_SECRET=$(openssl rand -base64 32)
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+ANTHROPIC_API_KEY=
+EOF
+docker compose up -d
+```
+
+Open `SITE_URL` and the installer takes it from there. The first start takes about a minute: Nordpress prerenders pages from your database, so it builds on its own server rather than in the image. Later restarts are instant; after an upgrade it builds once more.
+
+- **HTTPS:** put a reverse proxy in front. With [Caddy](https://caddyserver.com) it's two lines: `example.com` and `reverse_proxy localhost:3000`.
+- **Upgrading:** `git pull && docker compose up -d --build`. Migrations run automatically.
+- **Backups:** the `db` volume (or `docker compose exec db pg_dump -U nordpress nordpress`) and the `uploads` volume.
+- **Optional services:** add `VOYAGE_API_KEY`, `SMTP_URL`/`MAIL_FROM` or the `S3_*` settings to `.env`; `docker-compose.yml` passes them through.
+
+### Any Node.js host
+
+You need Node 24 and PostgreSQL 15+ with the pgvector extension (Neon, Supabase, Amazon RDS and most managed Postgres services have it).
+
+```bash
+pnpm install
+pnpm migrate   # applies database migrations
+pnpm build     # needs DATABASE_URL: pages are prerendered from the database
+pnpm start
+```
+
+On serverless platforms such as Vercel, set `STORAGE_DRIVER=s3`, because there's no persistent disk for uploads. Use the same environment variables as `.env.example`.
+
 ## Media storage
 
 Uploads are stored on local disk by default (`UPLOADS_DIR`). For hosts without a persistent disk, set `STORAGE_DRIVER=s3` with `S3_BUCKET` and credentials. This works with AWS S3 and S3-compatible services: Cloudflare R2, Backblaze B2, DigitalOcean Spaces, MinIO (set `S3_ENDPOINT` for those). See `.env.example`.
