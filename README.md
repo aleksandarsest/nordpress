@@ -303,6 +303,17 @@ A theme is a `defineTheme({ ... })` object (`src/lib/themes/types.ts`) that decl
 
 Build menus under **Appearance → Menus** from pages, posts, categories and custom links, nest them, and assign each one to a location of the active theme. Items linked to a page or term follow renames, and unpublished or deleted targets are hidden on the site.
 
+## Extending Nordpress
+
+Plugins and themes are TypeScript in this repository, so you (or a coding agent like Claude Code) can build exactly what a site needs:
+
+```bash
+pnpm new:plugin event-calendar "Event Calendar"   # src/plugins/event-calendar
+pnpm new:theme sunrise "Sunrise" --from nord      # copy of Nord to make your own
+```
+
+Both register themselves; activate the plugin under **Plugins** or switch to the theme under **Appearance → Themes**. [`AGENTS.md`](AGENTS.md) (loaded automatically by Claude Code through `CLAUDE.md`) explains the architecture, the hooks and the rules a change must follow, so agents get it right the first time.
+
 ## Importing from WordPress
 
 Activate the **WordPress Importer** plugin, then open **Tools → Import from WordPress**. In the old WordPress dashboard, export with **Tools → Export → All content** and upload that file.

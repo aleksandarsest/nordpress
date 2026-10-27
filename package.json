@@ -11,6 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "migrate": "node scripts/migrate.mjs",
+    "new:plugin": "node scripts/new-plugin.mjs",
+    "new:theme": "node scripts/new-theme.mjs",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
