@@ -185,6 +185,23 @@ export const postRevisions = pgTable(
   (t) => [index("post_revisions_post_idx").on(t.postId, t.createdAt)],
 );
 
+// Short-lived snapshots of unsaved editor state, rendered by /preview/<token>
+export const postPreviews = pgTable(
+  "post_previews",
+  {
+    token: text("token").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    postId: bigint("post_id", { mode: "number" }).references(() => posts.id, {
+      onDelete: "cascade",
+    }),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("post_previews_expires_idx").on(t.expiresAt)],
+);
+
 // ---------------------------------------------------------------------------
 // Taxonomies
 // ---------------------------------------------------------------------------

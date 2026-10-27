@@ -16,6 +16,7 @@ import {
   savePost,
   trashPost,
 } from "@/lib/posts";
+import { createPreview } from "@/lib/previews";
 import { getViewer, PermissionError } from "@/lib/session";
 import { TERMS_TAG } from "@/lib/terms";
 
@@ -174,4 +175,35 @@ export async function restoreRevisionAction(formData: FormData) {
   invalidate();
   queueIndex(post.id);
   redirect(`/admin/posts/${post.id}?restored=1`);
+}
+
+export async function createPreviewAction(input: {
+  postId: number | null;
+  type: string;
+  title: string;
+  content: string;
+  excerpt: string;
+  featuredMediaId: number | null;
+  categoryIds: number[];
+  tags: string;
+}): Promise<{ token?: string; error?: string }> {
+  try {
+    if (!isPostType(input.type)) throw new Error("Unknown content type.");
+    const token = await createPreview(await actor(), {
+      postId: input.postId,
+      type: input.type,
+      title: String(input.title),
+      content: parseDoc(String(input.content)),
+      excerpt: String(input.excerpt),
+      featuredMediaId: input.featuredMediaId,
+      categoryIds: input.categoryIds.filter(Number.isInteger),
+      tags: String(input.tags)
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    });
+    return { token };
+  } catch (error) {
+    return { error: formError(error)?.error };
+  }
 }

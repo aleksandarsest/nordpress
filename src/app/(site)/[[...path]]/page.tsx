@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { hybridSearch } from "@/lib/ai/search";
 import { makeExcerpt } from "@/lib/content";
-import { mediaUrl } from "@/lib/media";
 import { getSettings, type SiteSettings } from "@/lib/options";
 import { postPath, type Route, resolveRoute, termPath } from "@/lib/permalinks";
-import { applyFilters } from "@/lib/plugins";
 import {
   getAuthor,
   getPageTree,
@@ -15,13 +12,11 @@ import {
   listPublished,
 } from "@/lib/posts";
 import { getTermBySlug } from "@/lib/terms";
-import { Comments } from "../_components/comments";
+import { type SinglePost, SingleView } from "../_components/single";
 import {
   ArchiveHeader,
-  formatDate,
   Paging,
   PostList,
-  PostMeta,
   SearchForm,
 } from "../_components/theme";
 
@@ -92,7 +87,10 @@ async function resolveView(
       ) {
         const front = await getPublished({ id: settings.pageOnFront });
         if (front)
-          return { kind: "render", node: renderSingle(front, settings, true) };
+          return {
+            kind: "render",
+            node: <SingleView post={front} settings={settings} isFront />,
+          };
       }
       const result = await list({ page: route.page });
       if (route.page > result.pages) return null;
@@ -272,7 +270,7 @@ async function resolveView(
   }
 }
 
-type Single = NonNullable<Awaited<ReturnType<typeof getPublished>>>;
+type Single = SinglePost;
 
 async function singleById(
   id: number,
@@ -307,72 +305,8 @@ async function canonical(
     kind: "render",
     title: post.title,
     description: post.excerpt || makeExcerpt(post.contentText, 30),
-    node: renderSingle(post, settings),
+    node: <SingleView post={post} settings={settings} />,
   };
-}
-
-function renderSingle(post: Single, settings: SiteSettings, isFront = false) {
-  const tags = post.terms.filter((t) => t.taxonomy === "post_tag");
-  return (
-    <article className="grid gap-6">
-      <header className="grid gap-3">
-        {isFront ? (
-          <h1 className="sr-only">{post.title}</h1>
-        ) : (
-          <h1 className="font-semibold text-4xl tracking-tight">
-            {post.title}
-          </h1>
-        )}
-        {post.type === "post" && <PostMeta post={post} settings={settings} />}
-      </header>
-      {post.featuredPath && (
-        // biome-ignore lint/performance/noImgElement: arbitrary user uploads
-        <img
-          src={mediaUrl(post.featuredPath)}
-          alt={post.featuredAlt ?? ""}
-          className="w-full rounded-lg"
-        />
-      )}
-      <PostBody post={post} />
-      {tags.length > 0 && (
-        <footer className="flex flex-wrap gap-2 border-t pt-6 text-sm">
-          {tags.map((t) => (
-            <Link
-              key={t.id}
-              href={termPath(t.taxonomy, t.slug)}
-              className="rounded-full bg-muted px-3 py-1 hover:bg-muted/70"
-            >
-              #{t.name}
-            </Link>
-          ))}
-        </footer>
-      )}
-      {post.type === "post" && post.authorBio && (
-        <aside className="rounded-lg bg-muted/50 p-5 text-sm">
-          <p className="font-medium">About {post.authorName}</p>
-          <p className="mt-1 text-muted-foreground">{post.authorBio}</p>
-        </aside>
-      )}
-      {post.type === "post" && (
-        <p className="text-muted-foreground text-xs">
-          Published{" "}
-          <time dateTime={post.publishedAt?.toISOString()}>
-            {formatDate(post.publishedAt, settings)}
-          </time>{" "}
-          ·{" "}
-          <Link
-            href={postPath(post, settings.permalinkStructure)}
-            className="hover:underline"
-          >
-            Permalink
-          </Link>
-        </p>
-      )}
-      {(post.type === "post" || post.commentStatus === "open") && (
-        <Comments post={post} settings={settings} />
-      )}
-    </article>
-  );
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
@@ -384,18 +318,4 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const view = await resolveView(route, settings, requested);
   if (view?.kind !== "render") return {};
   return { title: view.title, description: view.description };
-}
-
-// The post body after plugins have had a chance to filter it.
-async function PostBody({ post }: { post: Single }) {
-  const html = await applyFilters("post.contentHtml", post.contentHtml, {
-    post,
-  });
-  return (
-    <div
-      className="prose prose-neutral dark:prose-invert max-w-none"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: core renders it from a schema-validated Tiptap document; plugins are trusted, compiled-in code
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
 }

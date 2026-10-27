@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { PostStatus } from "@/db/schema";
 import { editorExtensions } from "@/lib/editor-extensions";
-import { savePostAction } from "../posts/actions";
+import { createPreviewAction, savePostAction } from "../posts/actions";
 import { AiAssistant } from "./ai-assistant";
 import { AiSuggestions, type SuggestionTargets } from "./ai-suggestions";
 import { MediaPicker } from "./media-picker";
@@ -86,6 +86,31 @@ export function PostEditor({
   const [excerpt, setExcerpt] = useState(post.excerpt);
   const [tags, setTags] = useState(post.tags.join(", "));
   const [categoryIds, setCategoryIds] = useState(post.categoryIds);
+  const [previewError, setPreviewError] = useState("");
+
+  // Opens the tab right away (popup blockers allow it during the click),
+  // then points it at a snapshot of the current, possibly unsaved, state.
+  async function openPreview() {
+    setPreviewError("");
+    const tab = window.open("about:blank", "_blank");
+    const result = await createPreviewAction({
+      postId: post.id ?? null,
+      type: post.type,
+      title,
+      content: content ? JSON.stringify(content) : "",
+      excerpt,
+      featuredMediaId: featured.id,
+      categoryIds,
+      tags,
+    });
+    if (result.token) {
+      if (tab) tab.location.href = `/preview/${result.token}`;
+      else window.location.href = `/preview/${result.token}`;
+    } else {
+      tab?.close();
+      setPreviewError(result.error ?? "The preview couldn't be created.");
+    }
+  }
 
   // Applies AI suggestions; tags and categories are merged, not replaced
   function applySuggestion(patch: Partial<SuggestionTargets>) {
@@ -267,6 +292,19 @@ export function PostEditor({
               </Label>
             )}
             <div className="flex flex-wrap justify-between gap-2 border-t pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openPreview}
+                className="w-full"
+              >
+                Preview
+              </Button>
+              {previewError && (
+                <p role="alert" className="w-full text-destructive text-xs">
+                  {previewError}
+                </p>
+              )}
               {!isLive && (
                 <Button
                   type="submit"
