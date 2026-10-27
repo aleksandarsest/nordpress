@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@shadcn/registry@0.2.1'
+  - shadcn@4.23.0
