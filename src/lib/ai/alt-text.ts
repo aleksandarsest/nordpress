@@ -1,11 +1,11 @@
 import "server-only";
-import { readFile } from "node:fs/promises";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { after } from "next/server";
 import { z } from "zod";
 import type { Media } from "@/db/schema";
-import { resolveUploadPath, updateMedia } from "../media";
+import { updateMedia } from "../media";
 import { getSettings } from "../options";
+import { storage } from "../storage";
 import {
   AiError,
   aiConfigured,
@@ -61,14 +61,14 @@ export async function generateAltText(
     throw new AiError(
       "This image is too large for AI alt text (5 MB maximum).",
     );
-  const file = resolveUploadPath(item.path.split("/"));
-  if (!file) throw new AiError("The image file is missing.");
+  const bytes = await storage().read(item.path);
+  if (!bytes) throw new AiError("The image file is missing.");
 
   let model = "";
   try {
     const ctx = await aiContext();
     model = ctx.model;
-    const data = (await readFile(file)).toString("base64");
+    const data = Buffer.from(bytes).toString("base64");
     const response = await ctx.client.beta.messages.parse({
       model: ctx.model,
       max_tokens: 2000,

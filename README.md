@@ -32,6 +32,12 @@ pnpm dev
 
 Open http://localhost:3000. You'll be sent to `/install` to create the site and its first administrator.
 
+## Media storage
+
+Uploads are stored on local disk by default (`UPLOADS_DIR`). For hosts without a persistent disk, set `STORAGE_DRIVER=s3` with `S3_BUCKET` and credentials. This works with AWS S3 and S3-compatible services: Cloudflare R2, Backblaze B2, DigitalOcean Spaces, MinIO (set `S3_ENDPOINT` for those). See `.env.example`.
+
+Either way, files are served at `/uploads/...` with long-lived cache headers, so URLs never change when you switch storage; put a CDN in front for best performance. Images are resized on demand by the Next.js image optimizer (WebP/AVIF), so no fixed thumbnail sizes are generated.
+
 ## Scripts
 
 - `pnpm dev`: development server

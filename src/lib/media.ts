@@ -1,7 +1,5 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
 import {
   and,
   count,
@@ -17,10 +15,7 @@ import { db } from "@/db";
 import { media } from "@/db/schema";
 import { doAction } from "./plugins";
 import { slugify } from "./slug";
-
-export const UPLOADS_ROOT = path.resolve(
-  /*turbopackIgnore: true*/ process.env.UPLOADS_DIR ?? "./storage/uploads",
-);
+import { storage } from "./storage";
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
@@ -40,17 +35,6 @@ export const ALLOWED_TYPES: Record<string, string> = {
 
 export function mediaUrl(relPath: string) {
   return `/uploads/${relPath}`;
-}
-
-// Maps a URL path under /uploads to a file inside UPLOADS_ROOT, refusing
-// anything that would escape it.
-export function resolveUploadPath(segments: string[]) {
-  const full = path.resolve(
-    /*turbopackIgnore: true*/ UPLOADS_ROOT,
-    ...segments,
-  );
-  if (!full.startsWith(UPLOADS_ROOT + path.sep)) return null;
-  return full;
 }
 
 export class UploadError extends Error {}
@@ -80,13 +64,7 @@ export async function storeUpload(file: File, uploaderId: string) {
   const base = slugify(file.name.replace(/\.[^.]+$/, "")) || "file";
   const relPath = `${dir}/${base}-${randomUUID().slice(0, 8)}.${ext}`;
 
-  await mkdir(path.join(/*turbopackIgnore: true*/ UPLOADS_ROOT, dir), {
-    recursive: true,
-  });
-  await writeFile(
-    path.join(/*turbopackIgnore: true*/ UPLOADS_ROOT, relPath),
-    bytes,
-  );
+  await storage().put(relPath, bytes, file.type);
 
   const [row] = await db
     .insert(media)
@@ -154,8 +132,7 @@ export async function deleteMedia(id: number) {
   const row = await getMedia(id);
   if (!row) return;
   await db.delete(media).where(eq(media.id, id));
-  const file = resolveUploadPath(row.path.split("/"));
-  if (file) await rm(file, { force: true });
+  await storage().remove(row.path);
 }
 
 // Images the AI can describe (see lib/ai/alt-text.ts) that have no alt text.
