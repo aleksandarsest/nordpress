@@ -10,7 +10,7 @@ export default definePlugin({
   name: "Webhooks",
   version: "1.0.0",
   description:
-    "Notifies another service (Zapier, Slack, a build hook, ...) when a post is published or a comment arrives.",
+    "Notifies another service (Zapier, Slack, a build hook, ...) when a post is published, a comment arrives or a form is submitted.",
   author: "Nordpress",
   settings: [
     {
@@ -37,6 +37,12 @@ export default definePlugin({
       type: "checkbox",
       key: "onComment",
       label: "When a comment is submitted",
+      default: false,
+    },
+    {
+      type: "checkbox",
+      key: "onForm",
+      label: "When someone submits a form (spam excluded)",
       default: false,
     },
   ],
@@ -89,6 +95,17 @@ export default definePlugin({
         });
       },
     );
+
+    api.addAction("form.submitted", async ({ form, submission }) => {
+      if (!(await api.settings()).onForm) return;
+      await send("form.submitted", {
+        form: { id: form.id, title: form.title },
+        id: submission.id,
+        data: submission.data,
+        summary: submission.aiSummary,
+        source: submission.source,
+      });
+    });
 
     api.addAction("comment.created", async (comment) => {
       if (!(await api.settings()).onComment) return;

@@ -133,3 +133,20 @@
     @apply font-sans;
   }
 }
+
+/* Embedded forms show as a labelled box in the editor */
+.tiptap div[data-form] {
+  margin-block: 1.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--muted) 50%, transparent);
+  padding: 1.5rem 1rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+.tiptap div[data-form]::before {
+  content: "Form: " attr(data-title);
+}
+.tiptap div[data-form].ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ClipboardList,
   File,
   Gauge,
   Image,
@@ -24,6 +25,7 @@ const ICONS = {
   media: Image,
   pages: File,
   comments: MessageSquare,
+  forms: ClipboardList,
   appearance: Paintbrush,
   plugins: Plug,
   tools: Wrench,

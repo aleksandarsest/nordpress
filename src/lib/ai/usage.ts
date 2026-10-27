@@ -18,6 +18,8 @@ export const FEATURE_LABELS: Record<string, string> = {
   suggest: "Titles, tags & excerpts",
   alt_text: "Image alt text",
   chat: "Site chat",
+  form_draft: "Form drafting",
+  form_triage: "Form spam triage",
   embed_index: "Search indexing (Voyage)",
   embed_query: "Search queries (Voyage)",
 };

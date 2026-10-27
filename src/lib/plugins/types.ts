@@ -2,6 +2,8 @@ import type { ComponentType } from "react";
 import type {
   Comment,
   CommentStatus,
+  Form,
+  FormSubmission,
   Media,
   Post,
   PostStatus,
@@ -29,12 +31,18 @@ export type SavedPostEvent = {
   source: "app" | "import";
 };
 
+export type FormSubmittedEvent = {
+  form: Pick<Form, "id" | "title" | "fields">;
+  submission: FormSubmission;
+};
+
 export interface ActionHooks {
   "post.saved": [event: SavedPostEvent];
   "post.trashed": [post: Post];
   "post.deleted": [post: Post];
   "comment.created": [comment: Comment];
   "media.uploaded": [item: Media];
+  "form.submitted": [event: FormSubmittedEvent];
   "user.created": [
     user: { id: string; name: string; email: string; role: Role },
   ];

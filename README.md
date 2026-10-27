@@ -71,6 +71,7 @@ src/
   lib/plugins/   plugin runtime: hook engine, activation, settings, REST routing
   plugins/       installed plugins (one folder each) and the registry
   lib/themes/    theme contract, active theme and theme options
+  lib/forms/     form fields, validation, submissions, embeds and CSV
   themes/        installed themes (classic, nord) and the registry
     uploads/     serves uploaded files from UPLOADS_DIR
     feed/        RSS 2.0
@@ -88,6 +89,8 @@ A WordPress-compatible API, so existing clients, apps and scripts keep working.
 | `/comments` (+ `/{id}`) | list, read, create (anonymous or authenticated), moderate, delete |
 | `/users`, `/users/{id}`, `/users/me` | read |
 | `/search`, `/settings`, `/types`, `/taxonomies` | read; settings are writable by administrators |
+
+Nordpress's own endpoints live under `/wp-json/nordpress/v1`; see [Forms](#forms).
 
 Supports `page`, `per_page` (max 100), `search`, `_fields`, a practical `_embed` (author, featured media, terms), the `X-WP-Total` / `X-WP-TotalPages` / `Link` headers, and WordPress-shaped errors.
 
@@ -111,6 +114,7 @@ Set `ANTHROPIC_API_KEY` in `.env.local` and restart. Without a key, the AI contr
 - **Writing assistant:** the **AI** menu in the editor toolbar can improve, fix, shorten, lengthen, simplify or re-tone the selection (or the whole post), continue writing, write an excerpt, or follow a custom instruction. Answers stream into a preview; nothing changes until you choose Replace or Insert, and Undo works afterwards.
 - **Suggestions:** the **AI Suggestions** card proposes titles, an excerpt, a slug, categories (from your existing ones) and tags (reusing existing tags where they fit). Apply each one individually.
 - **Alt text:** **Generate with AI** on a media item, a bulk **Generate with AI** for images missing alt text, and optional automatic alt text for new uploads.
+- **Forms:** draft a whole form from a description, and have each response checked for spam and summarized (see [Forms](#forms)).
 - **Settings → AI:** turn features on or off, pick the model (Claude Opus 5.5 by default; Sonnet 5.5 or Haiku 5.5 for lower cost), and see 30 days of usage with estimated cost.
 
 Model output is treated as untrusted: HTML is passed through the editor's schema before it's shown or inserted, and suggested categories are checked against real ones. Declined requests automatically retry on a fallback model where Anthropic supports it (`fallbacks: "default"`).
@@ -171,6 +175,18 @@ Hooks run in priority order (lower first, default 10). An error in one plugin is
 
 Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
 
+## Forms
+
+Build forms under **Forms** and drop them into any post or page with the editor's **Form** button. Ten field types are available: short text, email, phone, website, number, date, paragraph, dropdown, multiple choice and checkboxes.
+
+- **Draft with AI:** describe the form ("a quote request with budget range and services") and Claude drafts the fields, button text and thank-you message. Inside the builder, **Replace fields** does the same, and nothing is saved until you choose Save Form.
+- **Responses:** an inbox per form with Unread and Spam views and CSV export. Each response is emailed to the form's address (or the site admin) and fires the `form.submitted` hook; the Webhooks plugin can forward it.
+- **AI triage:** each response is checked for spam and summarized in one line with Claude Haiku, whatever the site's main model. Spam goes to the Spam view and sends no email or webhook. Turn this off per form.
+- **Abuse protection:** a honeypot field, 10 responses per visitor and 200 per form every 10 minutes, and server-side validation of every field. The form works without JavaScript.
+- **For agents:** `GET /wp-json/nordpress/v1/forms/{id}` returns the fields and a JSON Schema; `POST .../forms/{id}/submissions` with a JSON body submits it (same validation and limits; errors list each field in `data.params`). Listing forms and reading responses (`GET .../submissions?status=new|read|spam`) needs an editor's application password.
+
+Field keys are fixed on the first save, so renaming a question never orphans earlier responses.
+
 ## Themes and menus
 
 Themes live in `src/themes/<slug>/` and are registered in `src/themes/index.ts`. Two ship with Nordpress: **Classic**, a single-column reading theme, and **Nord**, with a dark header, a card grid and the Nord palette. Switch between them under **Appearance → Themes**; content, menus and settings stay as they are.
@@ -217,6 +233,7 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | `wp_comments` | `comments` table; rules in `src/lib/comments.ts` |
 | Application passwords | `app_passwords` (SHA-256 hashed) |
 | Nav menus (`nav_menu_item` posts) | `menus` + `menu_items` |
+| Form plugins (Contact Form 7, Gravity Forms) | `forms` + `form_submissions`, built in |
 | Themes and `theme_mods` | `src/themes/*`, options saved as `theme:<slug>` |
 
 ## License

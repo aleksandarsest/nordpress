@@ -47,6 +47,8 @@ export type EditorOptions = {
   viewUrl: string | null;
   /** Whether the AI writing tools are available to this user. */
   ai: boolean;
+  /** Forms the editor can embed. */
+  forms: { id: number; title: string }[];
 };
 
 const STATUS_TEXT: Record<PostStatus, string> = {
@@ -209,6 +211,7 @@ export function PostEditor({
         />
         <RichTextEditor
           initialContent={post.content}
+          forms={options.forms}
           onChange={(doc) => {
             setContent(doc);
             setDirty(true);

@@ -1,6 +1,7 @@
 import "server-only";
 import { aiConfigured } from "@/lib/ai/client";
 import { type Actor, canOnPost, hasCap } from "@/lib/capabilities";
+import { listForms } from "@/lib/forms";
 import { getMedia, mediaUrl } from "@/lib/media";
 import { getSettings } from "@/lib/options";
 import { postPath } from "@/lib/permalinks";
@@ -20,11 +21,12 @@ export async function editorOptions(
     parentId: number | null;
   },
 ): Promise<EditorOptions> {
-  const [settings, categories, parents, tree] = await Promise.all([
+  const [settings, categories, parents, tree, forms] = await Promise.all([
     getSettings(),
     post.type === "post" ? listTerms("category") : [],
     post.type === "page" ? listParentCandidates("page", post.id) : [],
     post.type === "page" ? getPageTree() : [],
+    listForms(),
   ]);
 
   const parentPath = post.parentId
@@ -61,6 +63,7 @@ export async function editorOptions(
       parentId: c.parentId,
     })),
     parents,
+    forms: forms.map((f) => ({ id: f.id, title: f.title })),
     permalinkBase: base,
     ai: settings.aiEnabled && aiConfigured(),
     viewUrl:

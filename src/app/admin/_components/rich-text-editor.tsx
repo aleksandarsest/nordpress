@@ -10,6 +10,7 @@ import {
 } from "@tiptap/react";
 import {
   Bold,
+  ClipboardList,
   Code,
   Heading2,
   Heading3,
@@ -43,8 +44,11 @@ export function RichTextEditor({
   initialContent,
   onChange,
   toolbarEnd,
+  forms = [],
 }: {
   initialContent: JSONContent | null;
+  /** Forms that can be embedded with the toolbar's Form button. */
+  forms?: { id: number; title: string }[];
   onChange: (doc: JSONContent) => void;
   /** Extra controls rendered at the end of the toolbar (e.g. the AI menu). */
   toolbarEnd?: (editor: Editor) => ReactNode;
@@ -68,14 +72,25 @@ export function RichTextEditor({
 
   return (
     <div className="rounded-lg border bg-background">
-      {editor && <Toolbar editor={editor} end={toolbarEnd?.(editor)} />}
+      {editor && (
+        <Toolbar editor={editor} end={toolbarEnd?.(editor)} forms={forms} />
+      )}
       <EditorContent editor={editor} />
     </div>
   );
 }
 
-function Toolbar({ editor, end }: { editor: Editor; end?: ReactNode }) {
+function Toolbar({
+  editor,
+  end,
+  forms,
+}: {
+  editor: Editor;
+  end?: ReactNode;
+  forms: { id: number; title: string }[];
+}) {
   const [linkOpen, setLinkOpen] = useState(false);
+  const [formsOpen, setFormsOpen] = useState(false);
   const [linkHref, setLinkHref] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -202,6 +217,9 @@ function Toolbar({ editor, end }: { editor: Editor; end?: ReactNode }) {
       <Tool label="Image" onClick={() => setPickerOpen(true)}>
         <ImageIcon />
       </Tool>
+      <Tool label="Form" onClick={() => setFormsOpen(true)}>
+        <ClipboardList />
+      </Tool>
       <Divider />
       <Tool
         label="Undo"
@@ -249,6 +267,47 @@ function Toolbar({ editor, end }: { editor: Editor; end?: ReactNode }) {
               {linkHref ? "Apply" : "Remove link"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={formsOpen} onOpenChange={setFormsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Insert form</DialogTitle>
+          </DialogHeader>
+          {forms.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              There are no forms yet.{" "}
+              <a href="/admin/forms" className="text-primary underline">
+                Create one under Forms
+              </a>
+              .
+            </p>
+          ) : (
+            <ul className="grid max-h-80 gap-1 overflow-y-auto">
+              {forms.map((form) => (
+                <li key={form.id}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      // Forms live at the top level of the document
+                      chain()
+                        .insertContent({
+                          type: "formEmbed",
+                          attrs: { formId: form.id, title: form.title },
+                        })
+                        .run();
+                      setFormsOpen(false);
+                    }}
+                  >
+                    <ClipboardList /> {form.title}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
         </DialogContent>
       </Dialog>
 

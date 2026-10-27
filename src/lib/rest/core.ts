@@ -11,6 +11,8 @@ export class RestError extends Error {
     public code: string,
     message: string,
     public status = 400,
+    /** Extra fields for the error's `data`, e.g. { params: {...} }. */
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -291,7 +293,7 @@ export function errorResponse(error: unknown): Response {
   const body = {
     code: err?.code ?? "internal_server_error",
     message: err?.message ?? "There has been a critical error on this website.",
-    data: { status },
+    data: { status, ...err?.details },
   };
   return new Response(JSON.stringify(body), {
     status,

@@ -9,6 +9,7 @@ export type NavItem = {
     | "media"
     | "pages"
     | "comments"
+    | "forms"
     | "appearance"
     | "plugins"
     | "tools"
@@ -67,6 +68,12 @@ const NAV: NavDef[] = [
     href: "/admin/comments",
     icon: "comments",
     cap: "moderate_comments",
+  },
+  {
+    label: "Forms",
+    href: "/admin/forms",
+    icon: "forms",
+    cap: "edit_others_pages",
   },
   {
     label: "Appearance",

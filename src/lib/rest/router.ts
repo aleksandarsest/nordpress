@@ -12,6 +12,12 @@ import {
   toResponse,
 } from "./core";
 import {
+  getFormRoute,
+  listFormsRoute,
+  listSubmissionsRoute,
+  submitFormRoute,
+} from "./forms";
+import {
   createPost,
   deletePostRoute,
   getPostRoute,
@@ -123,6 +129,12 @@ const ROUTES: Route[] = [
     POST: updateSettingsRoute,
   }),
   route("/wp/v2/types", { GET: typesRoute }),
+  route("/nordpress/v1/forms", { GET: listFormsRoute }),
+  route(`/nordpress/v1/forms/${ID}`, { GET: getFormRoute }),
+  route(`/nordpress/v1/forms/${ID}/submissions`, {
+    GET: listSubmissionsRoute,
+    POST: submitFormRoute,
+  }),
   route("/wp/v2/taxonomies", { GET: taxonomiesRoute }),
 ];
 
@@ -131,7 +143,7 @@ function describeRoutes(prefix = "") {
     ROUTES.filter((r) => r.pattern.startsWith(prefix)).map((r) => [
       r.pattern.replace(/\(\?<(\w+)>[^)]+\)/g, "(?P<$1>[\\d]+)"),
       {
-        namespace: "wp/v2",
+        namespace: r.pattern.split("/").slice(1, 3).join("/"),
         methods: Object.keys(r.methods).flatMap((m) =>
           m === "POST" && r.keys.length ? ["POST", "PUT", "PATCH"] : [m],
         ),
@@ -151,7 +163,7 @@ async function index(path: string): Promise<RestResult> {
       url: siteUrl("/").replace(/\/$/, ""),
       home: siteUrl("/").replace(/\/$/, ""),
       timezone_string: settings.timezone,
-      namespaces: ["wp/v2", ...(await restNamespaces())],
+      namespaces: ["wp/v2", "nordpress/v1", ...(await restNamespaces())],
       authentication: {
         "application-passwords": {
           endpoints: { authorization: siteUrl("/admin/profile") },

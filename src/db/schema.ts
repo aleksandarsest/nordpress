@@ -16,6 +16,11 @@ import {
   uniqueIndex,
   vector,
 } from "drizzle-orm/pg-core";
+import type {
+  FormField,
+  FormSettings,
+  SubmissionData,
+} from "@/lib/forms/fields";
 
 const tsvector = customType<{ data: string }>({
   dataType: () => "tsvector",
@@ -438,6 +443,46 @@ export const aiUsage = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Forms
+// ---------------------------------------------------------------------------
+
+export const forms = pgTable("forms", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  title: text("title").notNull(),
+  fields: jsonb("fields").$type<FormField[]>().notNull().default([]),
+  settings: jsonb("settings").$type<FormSettings>().notNull(),
+  ...timestamps,
+});
+
+export const submissionStatusEnum = pgEnum("submission_status", [
+  "new",
+  "read",
+  "spam",
+]);
+
+export const formSubmissions = pgTable(
+  "form_submissions",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    formId: bigint("form_id", { mode: "number" })
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    data: jsonb("data").$type<SubmissionData>().notNull(),
+    status: submissionStatusEnum("status").notNull().default("new"),
+    // Filled in by AI triage after the submission is stored
+    aiSummary: text("ai_summary"),
+    aiSpamReason: text("ai_spam_reason"),
+    // "web" for the site form, "api" for REST and agents
+    source: text("source").notNull().default("web"),
+    sourcePostId: bigint("source_post_id", { mode: "number" }),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [index("form_submissions_form_idx").on(t.formId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 
@@ -457,3 +502,6 @@ export type Comment = typeof comments.$inferSelect;
 export type CommentStatus = (typeof commentStatusEnum.enumValues)[number];
 export type Menu = typeof menus.$inferSelect;
 export type MenuItem = typeof menuItems.$inferSelect;
+export type Form = typeof forms.$inferSelect;
+export type FormSubmission = typeof formSubmissions.$inferSelect;
+export type SubmissionStatus = (typeof submissionStatusEnum.enumValues)[number];

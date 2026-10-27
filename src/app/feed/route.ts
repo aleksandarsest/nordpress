@@ -1,4 +1,5 @@
 import { makeExcerpt } from "@/lib/content";
+import { replaceFormEmbeds } from "@/lib/forms/embed";
 import { getSettings } from "@/lib/options";
 import { postPath } from "@/lib/permalinks";
 import { applyFilters } from "@/lib/plugins";
@@ -42,7 +43,7 @@ export async function GET() {
       ${post.authorName ? `<dc:creator>${cdata(post.authorName)}</dc:creator>` : ""}
       ${post.terms.map((t) => `<category>${cdata(t.name)}</category>`).join("")}
       <description>${cdata(post.excerpt || makeExcerpt(post.contentText))}</description>
-      <content:encoded>${cdata(absolutize(bodies[i]))}</content:encoded>
+      <content:encoded>${cdata(absolutize(replaceFormEmbeds(bodies[i], `<p><a href="${escapeXml(link)}">Fill in the form on the site.</a></p>`)))}</content:encoded>
     </item>`;
     })
     .join("\n");

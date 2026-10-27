@@ -11,7 +11,10 @@ export function renderContent(doc: JSONContent | null | undefined) {
   if (!doc?.content?.length) return { html: "", text: "" };
   return {
     html: generateHTML(doc, editorExtensions),
-    text: generateText(doc, editorExtensions, { blockSeparator: "\n\n" }),
+    // Embeds render no text; don't leave a gap where they were
+    text: generateText(doc, editorExtensions, {
+      blockSeparator: "\n\n",
+    }).replace(/\n{3,}/g, "\n\n"),
   };
 }
 
