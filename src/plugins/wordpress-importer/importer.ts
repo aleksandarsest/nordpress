@@ -9,6 +9,8 @@ import {
   type CommentStatus,
   comments,
   media,
+  menuItems,
+  menus,
   posts,
   terms,
   user,
@@ -24,6 +26,7 @@ import {
   storeUpload,
   updateMedia,
 } from "@/lib/media";
+import { createMenu, isAllowedMenuUrl, MENUS_TAG } from "@/lib/menus";
 import { SETTINGS_TAG } from "@/lib/options";
 import { POSTS_TAG, type SaveIntent, savePost } from "@/lib/posts";
 import type { Viewer } from "@/lib/session";
@@ -31,9 +34,11 @@ import { createTerm, TERMS_TAG } from "@/lib/terms";
 import {
   autop,
   cleanContent,
+  menusFromWxr,
   parentsFirst,
   parseWxr,
   type WxrItem,
+  type WxrMenu,
 } from "./wxr";
 
 export type AuthorMode = "me" | "match" | "create";
@@ -51,6 +56,7 @@ export type ImportCounts = {
   tags: number;
   comments: number;
   media: number;
+  menus: number;
   users: number;
   skipped: number;
   failed: number;
@@ -97,6 +103,7 @@ function emptyCounts(): ImportCounts {
     tags: 0,
     comments: 0,
     media: 0,
+    menus: 0,
     users: 0,
     skipped: 0,
     failed: 0,
@@ -149,7 +156,10 @@ async function runImport(
     ? wxr.items.filter((i) => i.type === "attachment" && i.attachmentUrl)
     : [];
   const unsupported = wxr.items.filter(
-    (i) => !IMPORTABLE_TYPES.has(i.type) && i.type !== "attachment",
+    (i) =>
+      !IMPORTABLE_TYPES.has(i.type) &&
+      i.type !== "attachment" &&
+      i.type !== "nav_menu_item",
   );
   if (unsupported.length) {
     const kinds = [...new Set(unsupported.map((i) => i.type))].join(", ");
@@ -239,9 +249,39 @@ async function runImport(
     job.progress.done++;
   }
 
-  // 5. Caches and search index
+  // 5. Menus (they point at the posts and terms created above)
+  const wxrMenus = menusFromWxr(wxr);
+  if (wxrMenus.length) {
+    job.phase = "Creating menus";
+    const byWpTermId = (
+      list: typeof wxr.categories,
+      ids: Map<string, number>,
+    ) =>
+      new Map(
+        list.flatMap((t) =>
+          ids.has(t.slug) ? [[t.id, ids.get(t.slug) as number]] : [],
+        ),
+      );
+    await importMenus(
+      wxrMenus,
+      {
+        posts: postIds,
+        category: byWpTermId(wxr.categories, categoryIds),
+        post_tag: byWpTermId(wxr.tags, tagIds),
+      },
+      job,
+    );
+  }
+
+  // 6. Caches and search index
   job.phase = "Finishing up";
-  for (const tag of [POSTS_TAG, TERMS_TAG, COMMENTS_TAG, SETTINGS_TAG])
+  for (const tag of [
+    POSTS_TAG,
+    TERMS_TAG,
+    COMMENTS_TAG,
+    SETTINGS_TAG,
+    MENUS_TAG,
+  ])
     revalidateTag(tag, { expire: 0 });
   if (embeddingsConfigured()) {
     note(job, "Updating the search index…");
@@ -569,5 +609,72 @@ async function importComments(
       .returning({ id: comments.id });
     ids.set(c.id, row.id);
     job.counts.comments++;
+  }
+}
+
+// WordPress keeps menu locations in theme settings, which exports leave out,
+// so imported menus still need assigning under Appearance → Menus.
+async function importMenus(
+  list: WxrMenu[],
+  ids: {
+    posts: Map<number, number>;
+    category: Map<number, number>;
+    post_tag: Map<number, number>;
+  },
+  job: ImportJob,
+) {
+  for (const menu of list) {
+    const [existing] = await db
+      .select({ id: menus.id })
+      .from(menus)
+      .where(eq(menus.name, menu.name));
+    if (existing) {
+      job.counts.skipped++;
+      note(job, `A menu named “${menu.name}” already exists; left it as is.`);
+      continue;
+    }
+    const { id: menuId } = await createMenu(menu.name);
+    const newIds = new Map<number, number>();
+    let position = 0;
+    let missing = menu.skipped;
+    for (const item of menu.items) {
+      const objectId =
+        item.kind === "post"
+          ? ids.posts.get(item.objectWpId)
+          : item.kind === "term"
+            ? ids[item.taxonomy].get(item.objectWpId)
+            : null;
+      if (
+        (item.kind === "custom" && !isAllowedMenuUrl(item.url)) ||
+        (item.kind !== "custom" && !objectId)
+      ) {
+        missing++;
+        continue;
+      }
+      const [row] = await db
+        .insert(menuItems)
+        .values({
+          menuId,
+          // Children of a skipped item move up to the top level
+          parentId: newIds.get(item.parentWpId) ?? null,
+          position: position++,
+          type: item.kind,
+          objectId: objectId ?? null,
+          url: item.kind === "custom" ? item.url : "",
+          label: item.label,
+          openInNewTab: item.newTab,
+        })
+        .returning({ id: menuItems.id });
+      newIds.set(item.wpId, row.id);
+    }
+    job.counts.menus++;
+    note(
+      job,
+      `Created the “${menu.name}” menu with ${position} items` +
+        (missing
+          ? `, leaving out ${missing} that pointed to content that wasn't imported`
+          : "") +
+        ". Assign it to a location under Appearance → Menus.",
+    );
   }
 }

@@ -123,12 +123,17 @@ export type NewMenuItem =
   | { type: "custom"; url: string; label: string }
   | { type: "post" | "term"; objectId: number };
 
+// Blocks javascript: and other schemes that would run in visitors' browsers
+export function isAllowedMenuUrl(url: string) {
+  return /^(https?:\/\/|\/|#|mailto:|tel:)/i.test(url.trim());
+}
+
 export async function addMenuItems(menuId: number, items: NewMenuItem[]) {
   if (items.length === 0) return;
   for (const item of items) {
     if (item.type === "custom") {
       if (!item.label.trim()) throw new MenuError("Custom links need a label.");
-      if (!/^(https?:\/\/|\/|#|mailto:|tel:)/i.test(item.url.trim())) {
+      if (!isAllowedMenuUrl(item.url)) {
         throw new MenuError(
           "Links must start with http://, https://, /, #, mailto: or tel:.",
         );

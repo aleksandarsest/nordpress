@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { autop, cleanContent, parentsFirst, parseWxr } from "./wxr";
+import {
+  autop,
+  cleanContent,
+  menusFromWxr,
+  parentsFirst,
+  parseWxr,
+} from "./wxr";
 
 const xml = readFileSync(
   new URL("./fixtures/sample.xml", import.meta.url),
@@ -71,6 +77,61 @@ describe("parseWxr", () => {
     expect(() =>
       parseWxr("<rss><channel><title>x</title></channel></rss>"),
     ).toThrow(/WordPress export/);
+  });
+});
+
+describe("menusFromWxr", () => {
+  const [menu] = menusFromWxr(parseWxr(xml));
+
+  it("groups items into their menu in order", () => {
+    expect(menu).toMatchObject({ slug: "main-menu", name: "Main Menu" });
+    expect(menu.items).toEqual([
+      {
+        wpId: 31,
+        parentWpId: 0,
+        label: "",
+        newTab: false,
+        kind: "post",
+        objectWpId: 2,
+      },
+      {
+        wpId: 32,
+        parentWpId: 0,
+        label: "Trips",
+        newTab: false,
+        kind: "term",
+        taxonomy: "category",
+        objectWpId: 2,
+      },
+      {
+        wpId: 33,
+        parentWpId: 32,
+        label: "",
+        newTab: false,
+        kind: "post",
+        objectWpId: 10,
+      },
+      {
+        wpId: 34,
+        parentWpId: 0,
+        label: "Contact",
+        newTab: false,
+        kind: "custom",
+        url: "/contact",
+      },
+      {
+        wpId: 35,
+        parentWpId: 0,
+        label: "GitHub",
+        newTab: true,
+        kind: "custom",
+        url: "https://github.com/jane",
+      },
+    ]);
+  });
+
+  it("skips links to things Nordpress doesn't have", () => {
+    expect(menu.skipped).toBe(1);
   });
 });
 

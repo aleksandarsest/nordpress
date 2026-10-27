@@ -18,6 +18,7 @@ const COUNT_LABELS: [keyof ImportJob["counts"], string][] = [
   ["tags", "Tags"],
   ["media", "Media files"],
   ["users", "New authors"],
+  ["menus", "Menus"],
   ["skipped", "Skipped"],
   ["failed", "Failed"],
 ];

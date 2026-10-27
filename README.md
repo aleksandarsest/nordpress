@@ -70,6 +70,8 @@ src/
   lib/ai/        Claude integration: writing assistant, suggestions, alt text, usage
   lib/plugins/   plugin runtime: hook engine, activation, settings, REST routing
   plugins/       installed plugins (one folder each) and the registry
+  lib/themes/    theme contract, active theme and theme options
+  themes/        installed themes (classic, nord) and the registry
     uploads/     serves uploaded files from UPLOADS_DIR
     feed/        RSS 2.0
 ```
@@ -169,16 +171,29 @@ Hooks run in priority order (lower first, default 10). An error in one plugin is
 
 Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
 
+## Themes and menus
+
+Themes live in `src/themes/<slug>/` and are registered in `src/themes/index.ts`. Two ship with Nordpress: **Classic**, a single-column reading theme, and **Nord**, with a dark header, a card grid and the Nord palette. Switch between them under **Appearance → Themes**; content, menus and settings stay as they are.
+
+A theme is a `defineTheme({ ... })` object (`src/lib/themes/types.ts`) that declares:
+
+- **Components:** `Layout`, `Single`, `PostList`, `ArchiveHeader`, `Paging`, `SearchForm` and `Empty`. Core still does the routing, data loading, comments and plugin filters, so a theme only decides how things look.
+- **Menu locations,** such as `{ primary: "Header menu" }`.
+- **Settings,** the same field types plugins use. They are edited under **Appearance → Customize** and passed to every component as `options`.
+
+Build menus under **Appearance → Menus** from pages, posts, categories and custom links, nest them, and assign each one to a location of the active theme. Items linked to a page or term follow renames, and unpublished or deleted targets are hidden on the site.
+
 ## Importing from WordPress
 
 Activate the **WordPress Importer** plugin, then open **Tools → Import from WordPress**. In the old WordPress dashboard, export with **Tools → Export → All content** and upload that file.
 
-- **Imported:** posts, pages (with parent pages), categories (with hierarchy), tags, threaded comments with their original dates and status, sticky posts, excerpts and featured images.
+- **Imported:** posts, pages (with parent pages), categories (with hierarchy), tags, threaded comments with their original dates and status, sticky posts, excerpts, featured images and navigation menus.
 - **Authors:** matched to existing users by email. Optionally, missing authors are created as Author accounts; set their passwords under **Users**, since the importer gives them random ones.
 - **Media:** downloaded from the old site, with alt text and captions. Image links inside posts, including resized variants like `photo-300x200.jpg`, are rewritten to the new copies. The old site must still be online for this.
 - **Safe to re-run:** anything already imported is skipped. Imports don't trigger publish webhooks.
 - **Old links keep working:** URLs like `/2024/05/my-post/` and `/my-post/` redirect to the new address. Old numeric `?p=123` links do not; the original IDs are stored in each post's `meta.wpId`.
-- **Not imported:** menus, custom post types, revisions, shortcode output (shortcodes stay as text) and password protection (protected posts become private).
+- **Menus:** recreated with their nesting, custom labels and new-tab links. Links to the old domain become site-relative. Exports don't record menu locations, so assign the menus under **Appearance → Menus**.
+- **Not imported:** custom post types, revisions, shortcode output (shortcodes stay as text) and password protection (protected posts become private).
 
 Media downloads refuse private and loopback network addresses, so an export file can't make the server fetch internal URLs. The importer's settings can allow them for a WordPress install on your own network.
 
@@ -201,6 +216,8 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | Revisions | `post_revisions` (last 25 kept per post) |
 | `wp_comments` | `comments` table; rules in `src/lib/comments.ts` |
 | Application passwords | `app_passwords` (SHA-256 hashed) |
+| Nav menus (`nav_menu_item` posts) | `menus` + `menu_items` |
+| Themes and `theme_mods` | `src/themes/*`, options saved as `theme:<slug>` |
 
 ## License
 

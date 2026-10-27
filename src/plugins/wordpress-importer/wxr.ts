@@ -9,6 +9,7 @@ export type WxrAuthor = {
   displayName: string;
 };
 export type WxrTerm = {
+  id: number;
   slug: string;
   name: string;
   description: string;
@@ -47,6 +48,8 @@ export type WxrItem = {
   attachmentUrl: string;
   categories: string[];
   tags: string[];
+  /** Slugs of the nav menus a nav_menu_item belongs to. */
+  navMenus: string[];
   meta: Record<string, string>;
   comments: WxrComment[];
 };
@@ -60,6 +63,8 @@ export type Wxr = {
   authors: WxrAuthor[];
   categories: WxrTerm[];
   tags: WxrTerm[];
+  /** Navigation menus (nav_menu terms); their items are nav_menu_item posts. */
+  menus: WxrTerm[];
   items: WxrItem[];
 };
 
@@ -126,6 +131,7 @@ export function parseWxr(xml: string): Wxr {
 
   const categories = ((channel["wp:category"] as Node[] | undefined) ?? []).map(
     (c) => ({
+      id: int(c["wp:term_id"]),
       slug: text(c["wp:category_nicename"]).trim(),
       name: text(c["wp:cat_name"]).trim(),
       description: text(c["wp:category_description"]).trim(),
@@ -134,16 +140,20 @@ export function parseWxr(xml: string): Wxr {
   );
 
   const tags = ((channel["wp:tag"] as Node[] | undefined) ?? []).map((t) => ({
+    id: int(t["wp:term_id"]),
     slug: text(t["wp:tag_slug"]).trim(),
     name: text(t["wp:tag_name"]).trim(),
     description: text(t["wp:tag_description"]).trim(),
     parent: "",
   }));
 
-  // Newer exports also list categories and tags as generic <wp:term> entries
+  // Newer exports also list categories and tags as generic <wp:term>
+  // entries; nav menus only ever appear there
+  const menus: WxrTerm[] = [];
   for (const t of (channel["wp:term"] as Node[] | undefined) ?? []) {
     const taxonomy = text(t["wp:term_taxonomy"]).trim();
     const term = {
+      id: int(t["wp:term_id"]),
       slug: text(t["wp:term_slug"]).trim(),
       name: text(t["wp:term_name"]).trim(),
       description: text(t["wp:term_description"]).trim(),
@@ -154,7 +164,9 @@ export function parseWxr(xml: string): Wxr {
         ? categories
         : taxonomy === "post_tag"
           ? tags
-          : null;
+          : taxonomy === "nav_menu"
+            ? menus
+            : null;
     if (list && !list.some((x) => x.slug === term.slug)) list.push(term);
   }
 
@@ -193,6 +205,7 @@ export function parseWxr(xml: string): Wxr {
         attachmentUrl: text(item["wp:attachment_url"]).trim(),
         categories: termsOf("category"),
         tags: termsOf("post_tag"),
+        navMenus: termsOf("nav_menu"),
         meta,
         comments: ((item["wp:comment"] as Node[] | undefined) ?? []).map(
           (c) => ({
@@ -225,8 +238,84 @@ export function parseWxr(xml: string): Wxr {
     authors,
     categories,
     tags,
+    menus,
     items,
   };
+}
+
+export type WxrMenuItem = {
+  wpId: number;
+  /** wpId of the parent item, or 0. */
+  parentWpId: number;
+  label: string;
+  newTab: boolean;
+} & (
+  | { kind: "custom"; url: string }
+  | { kind: "post"; objectWpId: number }
+  | { kind: "term"; taxonomy: "category" | "post_tag"; objectWpId: number }
+);
+
+export type WxrMenu = {
+  slug: string;
+  name: string;
+  items: WxrMenuItem[];
+  /** Items linking to things Nordpress doesn't have (archives, custom types). */
+  skipped: number;
+};
+
+// Groups nav_menu_item posts into their menus, in menu order. Links to the
+// old site become site-relative so they keep working after the move.
+export function menusFromWxr(wxr: Wxr): WxrMenu[] {
+  const base = wxr.site.baseSiteUrl.replace(/\/+$/, "");
+  const relative = (url: string) => {
+    if (!base || !url.startsWith(base)) return url;
+    const rest = url.slice(base.length);
+    if (rest && !/^[/?#]/.test(rest)) return url;
+    return rest.replace(/^([^?#]*?)\/+(?=$|[?#])/, "$1") || "/";
+  };
+
+  return wxr.menus.map((menu) => {
+    const entries = wxr.items
+      .filter(
+        (i) =>
+          i.type === "nav_menu_item" &&
+          i.status === "publish" &&
+          i.navMenus.includes(menu.slug),
+      )
+      .sort((a, b) => a.menuOrder - b.menuOrder);
+    let skipped = 0;
+    const items = entries.flatMap((i): WxrMenuItem[] => {
+      const m = i.meta;
+      const common = {
+        wpId: i.id,
+        parentWpId: Number(m._menu_item_menu_item_parent) || 0,
+        label: i.title,
+        newTab: m._menu_item_target === "_blank",
+      };
+      const objectWpId = Number(m._menu_item_object_id) || 0;
+      const object = m._menu_item_object;
+      if (m._menu_item_type === "custom" && m._menu_item_url) {
+        return [{ ...common, kind: "custom", url: relative(m._menu_item_url) }];
+      }
+      if (
+        m._menu_item_type === "post_type" &&
+        (object === "post" || object === "page") &&
+        objectWpId
+      ) {
+        return [{ ...common, kind: "post", objectWpId }];
+      }
+      if (
+        m._menu_item_type === "taxonomy" &&
+        (object === "category" || object === "post_tag") &&
+        objectWpId
+      ) {
+        return [{ ...common, kind: "term", taxonomy: object, objectWpId }];
+      }
+      skipped++;
+      return [];
+    });
+    return { slug: menu.slug, name: menu.name, items, skipped };
+  });
 }
 
 // Orders terms so every parent comes before its children.
