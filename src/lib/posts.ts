@@ -425,6 +425,8 @@ export type SavePostInput = {
   source?: "app" | "import";
   /** Set when AI wrote some of this content (see src/lib/ai-provenance.ts). */
   aiSource?: AiSource;
+  /** Only members (and staff) see the full content; left as is when omitted. */
+  membersOnly?: boolean;
 };
 
 export class PostError extends Error {}
@@ -549,8 +551,15 @@ export async function savePost(actor: Actor, input: SavePostInput) {
       input.type === "post" && hasCap(actor, "edit_others_posts")
         ? !!input.sticky
         : (existing?.sticky ?? false),
-    ...(input.aiSource && {
-      meta: withAiSource(existing?.meta, input.aiSource),
+    ...((input.aiSource || input.membersOnly !== undefined) && {
+      meta: {
+        ...(input.aiSource
+          ? withAiSource(existing?.meta, input.aiSource)
+          : (existing?.meta ?? {})),
+        ...(input.membersOnly !== undefined && {
+          membersOnly: input.membersOnly,
+        }),
+      },
     }),
   };
 

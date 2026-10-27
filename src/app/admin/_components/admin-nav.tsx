@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BadgeCheck,
   ChartColumn,
   ClipboardList,
   File,
@@ -34,6 +35,7 @@ const ICONS = {
   comments: MessageSquare,
   forms: ClipboardList,
   shop: ShoppingBag,
+  members: BadgeCheck,
   appearance: Paintbrush,
   plugins: Plug,
   tools: Wrench,

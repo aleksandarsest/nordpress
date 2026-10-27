@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canOnPost } from "@/lib/capabilities";
+import { isMembersOnly } from "@/lib/members/access";
 import { getPostForEdit, POST_TYPES, type PostType } from "@/lib/posts";
 import { requireViewer } from "@/lib/session";
 import { editorOptions, featuredUrl } from "../../_components/editor-data";
@@ -69,6 +70,7 @@ export default async function EditPostPage({
           featuredUrl: await featuredUrl(post.featuredMediaId),
           commentStatus: post.commentStatus,
           sticky: post.sticky,
+          membersOnly: isMembersOnly(post.meta),
           categoryIds: data.categoryIds,
           tags: data.tags,
         }}

@@ -1,5 +1,6 @@
 import { makeExcerpt } from "@/lib/content";
 import { replaceFormEmbeds } from "@/lib/forms/embed";
+import { isMembersOnly, teaser } from "@/lib/members/access";
 import { getSettings } from "@/lib/options";
 import { postPath } from "@/lib/permalinks";
 import { applyFilters } from "@/lib/plugins";
@@ -29,7 +30,10 @@ export async function GET() {
 
   const bodies = await Promise.all(
     items.map((post) =>
-      applyFilters("post.contentHtml", post.contentHtml, { post }),
+      // Feeds are public: members-only posts get their teaser
+      isMembersOnly(post.meta)
+        ? `<p>${escapeXml(teaser(post))}</p>`
+        : applyFilters("post.contentHtml", post.contentHtml, { post }),
     ),
   );
   const entries = items

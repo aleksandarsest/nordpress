@@ -252,6 +252,14 @@ Sell products from the same site, with nothing extra to install. Under **Shop** 
 - **Orders:** an order list and detail page to mark orders paid, fulfilled, cancelled or refunded. Customers get emails when they order, when payment arrives and when the order ships.
 - **Ready for AI shoppers:** product pages carry `Product` structured data with price and availability. Every product has a Markdown copy at `/shop/<slug>.md`, and `llms.txt` lists the catalog. The admin assistant and MCP agents can find and edit products (`search_products`, `save_product`) and review orders (`list_orders`, administrators only).
 
+## Memberships
+
+Tick **Members only** on any post or page to keep it for members. Visitors see the excerpt (or the opening words) with an invitation to join at `/members`.
+
+- **Plans** under **Members**: free plans let people join with an account, instantly. Paid plans charge monthly or yearly through Stripe subscriptions (the same Stripe setup as the shop, plus the `customer.subscription.updated` and `customer.subscription.deleted` webhook events). Members manage billing or cancel through Stripe's portal from `/account`; a cancelled membership lasts until the end of the paid period.
+- **Grant or end** memberships by hand, for example for sponsors or staff.
+- **No leaks:** members-only content stays out of the RSS feed, the public REST API, the Markdown copies and `llms-full.txt`, search snippets beyond the teaser, and the semantic index, so the site chat can't quote it. People with editing roles always see everything.
+
 ## Insights
 
 **Insights** shows how people find the site and, increasingly important, how AI assistants read it and send readers to it, over the last 30 days:

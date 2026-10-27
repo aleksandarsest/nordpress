@@ -13,9 +13,9 @@ import { POSTS_TAG } from "@/lib/posts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { TERMS_TAG } from "@/lib/terms";
 
-// Only allow same-site relative redirects after login
+// Only same-site paths: browsers read "/\host" like "//host"
 function safeRedirect(target: string) {
-  return target.startsWith("/") && !target.startsWith("//") ? target : "/admin";
+  return /^\/(?![/\\])/.test(target) ? target : "/admin";
 }
 
 export async function login(
@@ -83,7 +83,8 @@ export async function register(
   } catch (error) {
     return formError(error);
   }
-  redirect("/admin");
+  // e.g. back to /members after signing up to join
+  redirect(safeRedirect(str(formData, "redirect_to") || "/admin"));
 }
 
 const installSchema = z.object({

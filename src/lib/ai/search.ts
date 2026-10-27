@@ -3,6 +3,7 @@ import { and, cosineDistance, desc, eq, inArray, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/db";
 import { postChunks, posts } from "@/db/schema";
+import { notMembersOnly } from "../members/sql";
 import { getSettings } from "../options";
 import { postPath } from "../permalinks";
 import {
@@ -56,6 +57,7 @@ async function nearestChunks(vector: number[], types: string[], limit: number) {
       and(
         inArray(posts.type, types),
         LIVE_POST_SQL,
+        notMembersOnly,
         sql`${distance} < ${MAX_DISTANCE}`,
       ),
     )
@@ -168,7 +170,7 @@ export async function retrievePassages(
       text: posts.contentText,
     })
     .from(posts)
-    .where(inArray(posts.id, ids));
+    .where(and(inArray(posts.id, ids), notMembersOnly));
   return ids.flatMap((id) => {
     const r = rows.find((row) => row.postId === id);
     return r

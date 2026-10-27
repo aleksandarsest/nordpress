@@ -43,6 +43,7 @@ export default async function NewPostPage({
           featuredUrl: null,
           commentStatus: settings.defaultCommentStatus,
           sticky: false,
+          membersOnly: false,
           categoryIds: settings.defaultCategory
             ? [settings.defaultCategory]
             : [],

@@ -66,6 +66,79 @@ export async function createCheckoutSession(order: Order) {
   return { id: data.id, url: data.url };
 }
 
+async function stripePost(
+  path: string,
+  form: URLSearchParams,
+  idempotencyKey?: string,
+) {
+  const res = await fetch(`${API()}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      ...(idempotencyKey && { "Idempotency-Key": idempotencyKey }),
+    },
+    body: form,
+    signal: AbortSignal.timeout(20_000),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    id?: string;
+    url?: string;
+    error?: { message?: string };
+  };
+  if (!res.ok || !data.url) {
+    console.error(`[stripe] ${path} failed`, res.status, data.error?.message);
+    throw new StripeError(
+      "Couldn't reach the payment provider. Please try again.",
+    );
+  }
+  return { id: data.id ?? "", url: data.url };
+}
+
+// A subscription for a membership plan, charged every month or year.
+export async function createSubscriptionCheckout(input: {
+  planId: number;
+  planName: string;
+  priceCents: number;
+  currency: string;
+  interval: "month" | "year";
+  userId: string;
+  email: string;
+  customerId: string | null;
+}) {
+  const form = new URLSearchParams({
+    mode: "subscription",
+    client_reference_id: input.userId,
+    "metadata[kind]": "membership",
+    "metadata[user_id]": input.userId,
+    "metadata[plan_id]": String(input.planId),
+    // The subscription carries the same ids, for its later events
+    "subscription_data[metadata][user_id]": input.userId,
+    "subscription_data[metadata][plan_id]": String(input.planId),
+    "line_items[0][quantity]": "1",
+    "line_items[0][price_data][currency]": input.currency.toLowerCase(),
+    "line_items[0][price_data][unit_amount]": String(input.priceCents),
+    "line_items[0][price_data][recurring][interval]": input.interval,
+    "line_items[0][price_data][product_data][name]": input.planName,
+    success_url: siteUrl("/account?joined=1"),
+    cancel_url: siteUrl("/members"),
+  });
+  if (input.customerId) form.set("customer", input.customerId);
+  else form.set("customer_email", input.email);
+  return stripePost("/v1/checkout/sessions", form);
+}
+
+// Stripe's own page for updating cards, switching or cancelling.
+export async function createBillingPortal(customerId: string) {
+  return stripePost(
+    "/v1/billing_portal/sessions",
+    new URLSearchParams({
+      customer: customerId,
+      return_url: siteUrl("/account"),
+    }),
+  );
+}
+
 const TOLERANCE_SECONDS = 300;
 
 // Checks the Stripe-Signature header: "t=<time>,v1=<hmac of `${t}.${body}`>".

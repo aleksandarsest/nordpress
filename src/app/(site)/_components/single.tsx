@@ -4,8 +4,11 @@ import { pathsOf } from "@/lib/ai-readable";
 import { getPublicForm } from "@/lib/forms";
 import { splitFormEmbeds } from "@/lib/forms/embed";
 import { responsiveContent } from "@/lib/images";
+import { hasMemberAccess } from "@/lib/members";
+import { isMembersOnly, teaser } from "@/lib/members/access";
 import { getSettings } from "@/lib/options";
 import { applyFilters } from "@/lib/plugins";
+import { getViewer } from "@/lib/session";
 import { postJsonLd } from "@/lib/structured-data";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
 import type { SinglePost } from "@/lib/themes/types";
@@ -28,8 +31,15 @@ export async function SingleView({
   const [theme, site] = await Promise.all([activeTheme(), getSettings()]);
   const options = await getThemeOptions(theme.slug);
   const { Single } = theme.components;
+  // Members-only content is checked per visitor; previews are for staff
+  const locked =
+    !preview &&
+    isMembersOnly(post.meta) &&
+    !(await hasMemberAccess(await getViewer()));
   const showComments =
-    !preview && (post.type === "post" || post.commentStatus === "open");
+    !locked &&
+    !preview &&
+    (post.type === "post" || post.commentStatus === "open");
   const paths = preview ? null : await pathsOf(post, site);
   return (
     <>
@@ -50,7 +60,11 @@ export async function SingleView({
                 AI assistance.
               </p>
             )}
-            <PostBody post={post} preview={preview} />
+            {locked ? (
+              <MembersGate post={post} />
+            ) : (
+              <PostBody post={post} preview={preview} />
+            )}
           </>
         }
         comments={
@@ -111,4 +125,39 @@ async function FormBlock({
       </p>
     );
   return <SiteForm form={form} postId={postId} />;
+}
+
+// What non-members see of a members-only post: the teaser and a way in.
+async function MembersGate({ post }: { post: SinglePost }) {
+  const viewer = await getViewer();
+  return (
+    <div className="grid gap-6">
+      <p className="text-lg">{teaser(post)}</p>
+      <div className="not-prose grid gap-3 rounded-xl border bg-muted/40 p-6 text-sm">
+        <p className="font-semibold text-base">
+          This {post.type === "page" ? "page" : "post"} is for members
+        </p>
+        <p className="text-muted-foreground">
+          Become a member to read the rest
+          {viewer ? "." : ", or log in if you already are."}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <a
+            href="/members"
+            className="rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground"
+          >
+            See memberships
+          </a>
+          {!viewer && (
+            <a
+              href="/login"
+              className="rounded-lg border px-4 py-2 font-medium"
+            >
+              Log in
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

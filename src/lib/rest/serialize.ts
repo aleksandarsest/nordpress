@@ -2,6 +2,7 @@ import "server-only";
 import type { Comment, Media, Post, Term, User } from "@/db/schema";
 import { makeExcerpt } from "../content";
 import { mediaUrl } from "../media";
+import { isMembersOnly, teaser } from "../members/access";
 import type { SiteSettings } from "../options";
 import { authorPath, postPath, termPath } from "../permalinks";
 import { siteUrl } from "../site-url";
@@ -55,8 +56,12 @@ export function serializePost(
       ...(edit && { raw: post.title }),
     },
     content: {
-      rendered: post.contentHtml,
-      protected: false,
+      // The API is public: members-only posts show their teaser outside edit
+      rendered:
+        !edit && isMembersOnly(post.meta)
+          ? `<p>${escapeHtml(teaser(post))}</p>\n`
+          : post.contentHtml,
+      protected: !edit && isMembersOnly(post.meta),
       // `raw` is HTML here; `document` is the native editor document
       ...(edit && { raw: post.contentHtml, document: post.content }),
     },

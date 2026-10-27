@@ -658,6 +658,50 @@ export const orders = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Memberships: plans, and who belongs to one
+// ---------------------------------------------------------------------------
+
+export const planIntervalEnum = pgEnum("plan_interval", ["month", "year"]);
+
+export const membershipPlans = pgTable("membership_plans", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  // 0 for a free plan; otherwise charged every interval through Stripe
+  priceCents: integer("price_cents").notNull().default(0),
+  interval: planIntervalEnum("interval").notNull().default("month"),
+  active: boolean("active").notNull().default(true),
+  ...timestamps,
+});
+
+export const membershipStatusEnum = pgEnum("membership_status", [
+  "active",
+  "past_due",
+  "cancelled",
+]);
+
+export const memberships = pgTable("memberships", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  // One membership per person; joining another plan replaces it
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+  planId: bigint("plan_id", { mode: "number" }).references(
+    () => membershipPlans.id,
+    { onDelete: "set null" },
+  ),
+  status: membershipStatusEnum("status").notNull().default("active"),
+  // Access ends after this, if set (end of the paid period after cancelling)
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  // "free", "stripe" or "admin" (granted by hand)
+  source: text("source").notNull().default("free"),
+  ...timestamps,
+});
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 
@@ -685,3 +729,5 @@ export type Suggestion = typeof suggestions.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
+export type MembershipPlan = typeof membershipPlans.$inferSelect;
+export type Membership = typeof memberships.$inferSelect;

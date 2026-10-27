@@ -3,6 +3,7 @@ import { aiProvenance, describeAiSources } from "./ai-provenance";
 import { htmlToDoc } from "./content";
 import { formatInZone } from "./dates";
 import { docToMarkdown, markdownToHtml } from "./markdown";
+import { isMembersOnly, teaser } from "./members/access";
 import type { SiteSettings } from "./options";
 import { authorPath, postPath, resolveRoute, termPath } from "./permalinks";
 import { applyFilters } from "./plugins";
@@ -155,7 +156,10 @@ export async function postMarkdown(
     aiProvenance(post.meta) &&
       `AI assistance: written with help from ${describeAiSources(aiProvenance(post.meta)?.sources ?? [])}`,
   ].filter(Boolean);
-  const body = docToMarkdown(post.content, markdownOptions);
+  // Public, like the site: members-only posts show their teaser
+  const body = isMembersOnly(post.meta)
+    ? `${teaser(post)}\n\n*The rest of this ${post.type === "page" ? "page" : "post"} is for members: ${siteUrl("/members")}*`
+    : docToMarkdown(post.content, markdownOptions);
   const markdown = [
     `# ${post.title || "(no title)"}`,
     post.excerpt && `> ${post.excerpt.replace(/\n+/g, " ")}`,

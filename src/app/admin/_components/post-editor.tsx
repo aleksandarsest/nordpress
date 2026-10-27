@@ -36,6 +36,8 @@ export type EditorPost = {
   sticky: boolean;
   categoryIds: number[];
   tags: string[];
+  /** Only members see the full content. */
+  membersOnly: boolean;
 };
 
 export type EditorOptions = {
@@ -292,6 +294,15 @@ export function PostEditor({
                 </div>
               </>
             )}
+            <Label className="items-start font-normal">
+              <Checkbox name="members_only" defaultChecked={post.membersOnly} />
+              <span>
+                Members only
+                <span className="block text-muted-foreground text-xs">
+                  Others see the excerpt and an invitation to join.
+                </span>
+              </span>
+            </Label>
             {post.type === "post" && options.canSticky && (
               <Label className="font-normal">
                 <Checkbox name="sticky" defaultChecked={post.sticky} /> Stick to

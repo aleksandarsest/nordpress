@@ -15,6 +15,7 @@ import { after } from "next/server";
 import { VoyageAIClient } from "voyageai";
 import { db } from "@/db";
 import { EMBEDDING_DIMENSIONS, postChunks, posts } from "@/db/schema";
+import { notMembersOnly } from "../members/sql";
 import { chunkPost } from "./chunk";
 import { recordUsage } from "./client";
 
@@ -81,6 +82,8 @@ const indexable = and(
   inArray(posts.type, ["post", "page"]),
   inArray(posts.status, ["publish", "future"]),
   sql`${posts.password} is null`,
+  // The public site chat must never quote members-only content
+  notMembersOnly,
 );
 
 // Brings one post's passages up to date, embedding only what changed.

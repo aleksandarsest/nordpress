@@ -10,15 +10,21 @@ import { register } from "../actions";
 
 export const metadata: Metadata = { title: "Registration Form" };
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: PageProps<"/register">) {
   const settings = await getSettings();
   if (!settings.usersCanRegister) notFound();
+  const { redirect_to } = await searchParams;
 
   return (
     <>
       <Card>
         <CardContent>
           <ActionForm action={register} className="grid gap-4">
+            {typeof redirect_to === "string" && (
+              <input type="hidden" name="redirect_to" value={redirect_to} />
+            )}
             <div className="grid gap-2">
               <Label htmlFor="name">Name</Label>
               <Input
