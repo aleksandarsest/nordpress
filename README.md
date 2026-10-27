@@ -5,6 +5,8 @@ categories and tags, media, users with WordPress's roles, settings, and a
 public theme with WordPress-compatible permalinks, threaded comments, and a
 WordPress-compatible REST API, plus AI writing tools powered by Claude.
 
+**Documentation:** [migrating from WordPress](docs/migrating-from-wordpress.md) · [production checklist](docs/production-checklist.md) · [AI agents](docs/agents.md) · [plugins](docs/plugins.md) · [themes](docs/themes.md) · [contributing](CONTRIBUTING.md)
+
 ## Stack
 
 | Layer     | Choice                                                                  |
