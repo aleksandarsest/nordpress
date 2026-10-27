@@ -14,7 +14,9 @@
       "!dist",
       "!build",
       "!src/components/ui",
-      "!src/db/migrations"
+      "!src/db/migrations",
+      "!pnpm-lock.yaml",
+      "!pnpm-workspace.yaml"
     ]
   },
   "formatter": {
@@ -30,7 +32,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     },
     "domains": {
       "next": "recommended",

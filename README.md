@@ -7,16 +7,16 @@ WordPress-compatible REST API, plus AI writing tools powered by Claude.
 
 ## Stack
 
-| Layer | Choice |
-| --- | --- |
-| Runtime | Node 24 LTS (`.nvmrc`), pnpm 12 |
+| Layer     | Choice                                                                  |
+| --------- | ----------------------------------------------------------------------- |
+| Runtime   | Node 24 LTS (`.nvmrc`), pnpm 12                                         |
 | Framework | Next.js 16.4 (App Router, Cache Components, React Compiler), React 19.3 |
-| Language | TypeScript 7 |
-| Database | PostgreSQL 17 + Drizzle ORM (pgvector ready for AI search) |
-| Auth | Better Auth (email + password, WordPress roles/capabilities) |
-| Editor | Tiptap 3 (content stored as JSON, rendered to HTML on save) |
-| UI | Tailwind CSS 4, shadcn/ui (Base UI) |
-| Tooling | Biome, Vitest |
+| Language  | TypeScript 7                                                            |
+| Database  | PostgreSQL 17 + Drizzle ORM (pgvector ready for AI search)              |
+| Auth      | Better Auth (email + password, WordPress roles/capabilities)            |
+| Editor    | Tiptap 3 (content stored as JSON, rendered to HTML on save)             |
+| UI        | Tailwind CSS 4, shadcn/ui (Base UI)                                     |
+| Tooling   | Biome, Vitest                                                           |
 
 ## Getting started
 
@@ -120,20 +120,20 @@ src/
 
 A WordPress-compatible API, so existing clients, apps and scripts keep working.
 
-| Route | Methods |
-| --- | --- |
-| `/posts`, `/pages` (+ `/{id}`) | list, read, create, update (`POST`/`PUT`/`PATCH`), delete (trash, or `?force=true`) |
-| `/categories`, `/tags` (+ `/{id}`) | list, read, create, update, delete (`force=true`) |
-| `/media` (+ `/{id}`) | list, read, upload (multipart `file` or raw body with `Content-Disposition`), update, delete |
-| `/comments` (+ `/{id}`) | list, read, create (anonymous or authenticated), moderate, delete |
-| `/users`, `/users/{id}`, `/users/me` | read |
-| `/search`, `/settings`, `/types`, `/taxonomies` | read; settings are writable by administrators |
+| Route                                           | Methods                                                                                      |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `/posts`, `/pages` (+ `/{id}`)                  | list, read, create, update (`POST`/`PUT`/`PATCH`), delete (trash, or `?force=true`)          |
+| `/categories`, `/tags` (+ `/{id}`)              | list, read, create, update, delete (`force=true`)                                            |
+| `/media` (+ `/{id}`)                            | list, read, upload (multipart `file` or raw body with `Content-Disposition`), update, delete |
+| `/comments` (+ `/{id}`)                         | list, read, create (anonymous or authenticated), moderate, delete                            |
+| `/users`, `/users/{id}`, `/users/me`            | read                                                                                         |
+| `/search`, `/settings`, `/types`, `/taxonomies` | read; settings are writable by administrators                                                |
 
 Nordpress's own endpoints live under `/wp-json/nordpress/v1`; see [Forms](#forms).
 
 Supports `page`, `per_page` (max 100), `search`, `_fields`, a practical `_embed` (author, featured media, terms), the `X-WP-Total` / `X-WP-TotalPages` / `Link` headers, and WordPress-shaped errors.
 
-**Authentication:** create an *application password* under **Profile** in the admin, then use HTTP Basic auth with your email address and that password:
+**Authentication:** create an _application password_ under **Profile** in the admin, then use HTTP Basic auth with your email address and that password:
 
 ```bash
 curl -u "you@example.com:abcd efgh ijkl mnop qrst uvwx" \
@@ -186,7 +186,14 @@ export default definePlugin({
   name: "Hello",
   version: "1.0.0",
   description: "Appends a greeting to every post.",
-  settings: [{ type: "text", key: "greeting", label: "Greeting", default: "Thanks for reading!" }],
+  settings: [
+    {
+      type: "text",
+      key: "greeting",
+      label: "Greeting",
+      default: "Thanks for reading!",
+    },
+  ],
   rest: [{ method: "GET", path: "/ping", handler: () => ({ pong: true }) }], // GET /wp-json/hello/v1/ping
   register(api) {
     api.addFilter("post.contentHtml", async (html) => {
@@ -194,19 +201,20 @@ export default definePlugin({
       return `${html}<p>${greeting}</p>`;
     });
     api.addAction("post.saved", ({ post, previousStatus }) => {
-      if (post.status === "publish" && previousStatus !== "publish") api.log("published", post.title);
+      if (post.status === "publish" && previousStatus !== "publish")
+        api.log("published", post.title);
     });
   },
 });
 ```
 
-| Hook | Kind | When |
-| --- | --- | --- |
-| `post.saved` | action | After a post or page is created or updated (any source: admin, REST, importer) |
-| `post.trashed`, `post.deleted` | action | After a post is trashed or permanently deleted |
-| `comment.created` | action | After a comment is stored |
-| `media.uploaded` | action | After a file is uploaded |
-| `user.created` | action | After a user account is created |
+| Hook                           | Kind   | When                                                                           |
+| ------------------------------ | ------ | ------------------------------------------------------------------------------ |
+| `post.saved`                   | action | After a post or page is created or updated (any source: admin, REST, importer) |
+| `post.trashed`, `post.deleted` | action | After a post is trashed or permanently deleted                                 |
+| `comment.created`              | action | After a comment is stored                                                      |
+| `media.uploaded`               | action | After a file is uploaded                                                       |
+| `user.created`                 | action | After a user account is created                                                |
 
 `post.saved` includes `source` (`"app"` or `"import"`) so plugins can skip bulk imports. Plugins can also add admin screens (`adminPages`), which appear under **Tools**.
 | `post.contentHtml` | filter | Post body HTML on the public site and in the RSS feed |
@@ -310,13 +318,13 @@ claude mcp add --transport http nordpress https://your-site/mcp \
 
 **Tools:**
 
-| Tool | Does |
-| --- | --- |
-| `get_site_info` | Site details, who the agent is acting as, what that account may do, and the agent policy |
-| `search_content`, `get_post`, `list_categories_and_tags` | Find and read posts and pages; bodies come back as Markdown |
-| `create_post`, `update_post`, `trash_post` | Write in Markdown; categories and tags by name; trash only, never permanent deletion |
-| `list_comments`, `moderate_comment`, `reply_to_comment` | Moderation queue and replies |
-| `get_form_responses` | Forms and their responses, with AI summaries |
+| Tool                                                     | Does                                                                                     |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `get_site_info`                                          | Site details, who the agent is acting as, what that account may do, and the agent policy |
+| `search_content`, `get_post`, `list_categories_and_tags` | Find and read posts and pages; bodies come back as Markdown                              |
+| `create_post`, `update_post`, `trash_post`               | Write in Markdown; categories and tags by name; trash only, never permanent deletion     |
+| `list_comments`, `moderate_comment`, `reply_to_comment`  | Moderation queue and replies                                                             |
+| `get_form_responses`                                     | Forms and their responses, with AI summaries                                             |
 
 **Guardrails:**
 
@@ -395,24 +403,24 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 
 ## WordPress concepts and where they live
 
-| WordPress | Here |
-| --- | --- |
-| `wp_posts` / `wp_postmeta` | `posts` table with a typed `meta` JSONB column |
-| `wp_terms` + taxonomy tables | `terms` + `post_terms` |
-| `wp_options` | `options` table, read through the cached `getSettings()` |
-| Roles and `map_meta_cap` | `src/lib/capabilities.ts` |
-| Rewrite rules | `resolveRoute()` in `src/lib/permalinks.ts` |
-| `redirect_canonical` | `canonical()` in `src/app/(site)/[[...path]]/page.tsx` |
-| Revisions | `post_revisions` (last 25 kept per post) |
-| `wp_comments` | `comments` table; rules in `src/lib/comments.ts` |
-| Application passwords | `app_passwords` (SHA-256 hashed) |
-| (none: agents use REST with no guardrails) | MCP server at `/mcp`, `agent_actions` log, `src/lib/mcp` |
-| Nav menus (`nav_menu_item` posts) | `menus` + `menu_items` |
-| SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/structured-data.ts`, `src/lib/ai-readable.ts` |
-| WPML / Polylang | Translations as linked posts (`meta.lang`, `meta.translationOf`), `src/lib/translations.ts` |
-| WooCommerce (core store) | `products` + `orders`, `src/lib/shop`, Stripe Checkout |
-| Form plugins (Contact Form 7, Gravity Forms) | `forms` + `form_submissions`, built in |
-| Themes and `theme_mods` | `src/themes/*`, options saved as `theme:<slug>` |
+| WordPress                                          | Here                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `wp_posts` / `wp_postmeta`                         | `posts` table with a typed `meta` JSONB column                                              |
+| `wp_terms` + taxonomy tables                       | `terms` + `post_terms`                                                                      |
+| `wp_options`                                       | `options` table, read through the cached `getSettings()`                                    |
+| Roles and `map_meta_cap`                           | `src/lib/capabilities.ts`                                                                   |
+| Rewrite rules                                      | `resolveRoute()` in `src/lib/permalinks.ts`                                                 |
+| `redirect_canonical`                               | `canonical()` in `src/app/(site)/[[...path]]/page.tsx`                                      |
+| Revisions                                          | `post_revisions` (last 25 kept per post)                                                    |
+| `wp_comments`                                      | `comments` table; rules in `src/lib/comments.ts`                                            |
+| Application passwords                              | `app_passwords` (SHA-256 hashed)                                                            |
+| (none: agents use REST with no guardrails)         | MCP server at `/mcp`, `agent_actions` log, `src/lib/mcp`                                    |
+| Nav menus (`nav_menu_item` posts)                  | `menus` + `menu_items`                                                                      |
+| SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/structured-data.ts`, `src/lib/ai-readable.ts`                                      |
+| WPML / Polylang                                    | Translations as linked posts (`meta.lang`, `meta.translationOf`), `src/lib/translations.ts` |
+| WooCommerce (core store)                           | `products` + `orders`, `src/lib/shop`, Stripe Checkout                                      |
+| Form plugins (Contact Form 7, Gravity Forms)       | `forms` + `form_submissions`, built in                                                      |
+| Themes and `theme_mods`                            | `src/themes/*`, options saved as `theme:<slug>`                                             |
 
 ## License
 
