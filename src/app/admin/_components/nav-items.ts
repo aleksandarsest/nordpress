@@ -139,6 +139,11 @@ const NAV: NavDef[] = [
         cap: "manage_options",
       },
       { label: "AI", href: "/admin/settings/ai", cap: "manage_options" },
+      {
+        label: "Agents",
+        href: "/admin/settings/agents",
+        cap: "manage_options",
+      },
     ],
   },
 ];

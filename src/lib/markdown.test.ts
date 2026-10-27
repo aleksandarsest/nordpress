@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { htmlToDoc } from "./content";
-import { docToMarkdown } from "./markdown";
+import { docToMarkdown, markdownToHtml } from "./markdown";
 
 const options = {
   absolute: (url: string) =>
@@ -47,5 +47,24 @@ describe("docToMarkdown", () => {
     ).toBe(
       "```ts\nconst a = 1;\n```\n\n---\n\n![A \\[cat\\]](https://example.com/uploads/a.png)\n\nline\\\nbreak\n\n[Form: Contact](https://example.com/wp-json/nordpress/v1/forms/4) (JSON Schema and submission endpoint)",
     );
+  });
+});
+
+describe("markdownToHtml", () => {
+  it("round-trips through the editor schema", () => {
+    const source =
+      "## Title\n\nSome **bold** and [a link](https://example.com).\n\n- One\n- Two\n\n```js\nx()\n```";
+    expect(docToMarkdown(htmlToDoc(markdownToHtml(source)), options)).toBe(
+      source,
+    );
+  });
+
+  it("drops scripts and unknown HTML", () => {
+    const doc = htmlToDoc(
+      markdownToHtml(
+        'Hi <script>alert(1)</script><img src=x onerror="alert(1)">',
+      ),
+    );
+    expect(JSON.stringify(doc)).not.toMatch(/script|onerror/);
   });
 });

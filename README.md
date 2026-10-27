@@ -72,6 +72,7 @@ src/
   plugins/       installed plugins (one folder each) and the registry
   lib/themes/    theme contract, active theme and theme options
   lib/forms/     form fields, validation, submissions, embeds and CSV
+  lib/mcp/       MCP server for AI agents: tools, policy and audit log
   themes/        installed themes (classic, nord) and the registry
     uploads/     serves uploaded files from UPLOADS_DIR
     feed/        RSS 2.0
@@ -175,6 +176,34 @@ Hooks run in priority order (lower first, default 10). An error in one plugin is
 
 Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
 
+## AI agents (MCP)
+
+Nordpress is an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so Claude Code, Claude Desktop and other agents can manage the site: "draft a post about our launch and tag it", "what's waiting in moderation?", "summarize this week's contact form responses".
+
+**Connect:** create an application password under **Profile** (name it after the agent), Base64-encode `email:password`, then:
+
+```bash
+claude mcp add --transport http nordpress https://your-site/mcp \
+  --header "Authorization: Basic <base64 of email:application-password>"
+```
+
+**Tools:**
+
+| Tool | Does |
+| --- | --- |
+| `get_site_info` | Site details, who the agent is acting as, what that account may do, and the agent policy |
+| `search_content`, `get_post`, `list_categories_and_tags` | Find and read posts and pages; bodies come back as Markdown |
+| `create_post`, `update_post`, `trash_post` | Write in Markdown; categories and tags by name; trash only, never permanent deletion |
+| `list_comments`, `moderate_comment`, `reply_to_comment` | Moderation queue and replies |
+| `get_form_responses` | Forms and their responses, with AI summaries |
+
+**Guardrails:**
+
+- **Same permissions as the person.** Agents act as the application password's owner, with that role's capabilities. A Contributor's agent can only write drafts of its own.
+- **Humans approve what goes live.** By default an agent can't change the live site: a request to publish is saved as Pending Review, published content is read-only, and comment replies are refused. Each refusal explains why, so the agent can tell its user. An administrator can allow live changes under **Settings → Agents**.
+- **Everything is logged.** Every change, refusal and failure is recorded with the user, the application password used and the arguments (long text shortened), and shown under **Settings → Agents**. Read-only lookups aren't logged.
+- **Limits.** 120 calls a minute per user. Revoking the application password cuts the agent off at once, and the endpoint can be switched off entirely.
+
 ## Readable by AI
 
 More and more readers are AI assistants and agents acting for people. Nordpress gives them clean, cheap-to-read versions of the site:
@@ -242,6 +271,7 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | Revisions | `post_revisions` (last 25 kept per post) |
 | `wp_comments` | `comments` table; rules in `src/lib/comments.ts` |
 | Application passwords | `app_passwords` (SHA-256 hashed) |
+| (none: agents use REST with no guardrails) | MCP server at `/mcp`, `agent_actions` log, `src/lib/mcp` |
 | Nav menus (`nav_menu_item` posts) | `menus` + `menu_items` |
 | SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/structured-data.ts`, `src/lib/ai-readable.ts` |
 | Form plugins (Contact Form 7, Gravity Forms) | `forms` + `form_submissions`, built in |

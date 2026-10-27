@@ -483,6 +483,35 @@ export const formSubmissions = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// AI agents (MCP): an audit log of every tool call
+// ---------------------------------------------------------------------------
+
+export const agentActions = pgTable(
+  "agent_actions",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    // The application password the agent used, by name ("Claude Code")
+    credential: text("credential"),
+    client: text("client"),
+    tool: text("tool").notNull(),
+    // Arguments, truncated; content bodies are summarized by length
+    args: jsonb("args").$type<Record<string, unknown>>().notNull().default({}),
+    // "ok", "error" or "denied"
+    outcome: text("outcome").notNull(),
+    message: text("message"),
+    // The post, comment or form the call acted on, when there is one
+    target: text("target"),
+    ipAddress: text("ip_address"),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [
+    index("agent_actions_created_idx").on(t.createdAt),
+    index("agent_actions_user_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 
@@ -505,3 +534,4 @@ export type MenuItem = typeof menuItems.$inferSelect;
 export type Form = typeof forms.$inferSelect;
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type SubmissionStatus = (typeof submissionStatusEnum.enumValues)[number];
+export type AgentAction = typeof agentActions.$inferSelect;

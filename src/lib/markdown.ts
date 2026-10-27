@@ -1,4 +1,5 @@
 import type { JSONContent } from "@tiptap/core";
+import { Marked } from "marked";
 
 // Turns a stored editor document into Markdown for AI agents and other
 // text-first readers. Pure: URLs are made absolute by the caller's function.
@@ -83,7 +84,10 @@ function block(node: JSONContent, o: MarkdownOptions): string {
         .join("\n");
     }
     case "codeBlock": {
-      const code = (node.content ?? []).map((n) => n.text ?? "").join("");
+      const code = (node.content ?? [])
+        .map((n) => n.text ?? "")
+        .join("")
+        .replace(/\n$/, "");
       const fence = code.includes("```") ? "~~~~" : "```";
       return `${fence}${node.attrs?.language ?? ""}\n${code}\n${fence}`;
     }
@@ -118,4 +122,12 @@ export function docToMarkdown(
   options: MarkdownOptions,
 ): string {
   return blocks(doc?.content, options);
+}
+
+// Markdown in (from agents): to HTML, which the caller then parses into the
+// editor schema, dropping raw HTML tags the schema doesn't know.
+const parser = new Marked({ gfm: true, breaks: false, async: false });
+
+export function markdownToHtml(markdown: string): string {
+  return parser.parse(markdown) as string;
 }

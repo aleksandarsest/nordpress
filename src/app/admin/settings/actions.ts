@@ -186,6 +186,21 @@ export async function saveAiAction(
   }
 }
 
+export async function saveAgentsAction(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  try {
+    await save({
+      mcpEnabled: formData.get("mcp_enabled") === "on",
+      agentsCanPublish: formData.get("agents_can_publish") === "on",
+    });
+    return { message: "Settings saved." };
+  } catch (error) {
+    return formError(error);
+  }
+}
+
 export async function rebuildIndexAction() {
   await assertCap("manage_options");
   if (!embeddingsConfigured()) return;

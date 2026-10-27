@@ -56,6 +56,14 @@ export async function authenticateBasic(
   header: string | null,
   ip: string | null,
 ): Promise<Viewer | null> {
+  return (await authenticateAppPassword(header, ip))?.viewer ?? null;
+}
+
+// Like authenticateBasic, but also says which application password was used.
+export async function authenticateAppPassword(
+  header: string | null,
+  ip: string | null,
+): Promise<{ viewer: Viewer; credential: string } | null> {
   if (!header?.startsWith("Basic ")) return null;
   const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
   const sep = decoded.indexOf(":");
@@ -66,6 +74,7 @@ export async function authenticateBasic(
   const [row] = await db
     .select({
       passwordId: appPasswords.id,
+      passwordName: appPasswords.name,
       id: user.id,
       name: user.name,
       email: user.email,
@@ -85,10 +94,13 @@ export async function authenticateBasic(
     .where(eq(appPasswords.id, row.passwordId));
 
   return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    role: row.role as Role,
-    image: row.image,
+    credential: row.passwordName,
+    viewer: {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role as Role,
+      image: row.image,
+    },
   };
 }

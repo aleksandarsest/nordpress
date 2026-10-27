@@ -56,6 +56,13 @@ export type SiteSettings = {
   aiAutoAltText: boolean;
   chatEnabled: boolean;
   chatDailyLimit: number;
+  /** Let AI agents connect over MCP at /mcp with an application password. */
+  mcpEnabled: boolean;
+  /**
+   * Let agents change the live site: publish, edit or trash published
+   * content, and reply to comments. Off means their work waits for review.
+   */
+  agentsCanPublish: boolean;
   /** Slugs of activated plugins (see src/plugins). */
   activePlugins: string[];
   /** Theme location (e.g. "primary") → menu id. */
@@ -94,6 +101,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   aiAutoAltText: false,
   chatEnabled: false,
   chatDailyLimit: 300,
+  mcpEnabled: true,
+  agentsCanPublish: false,
   activePlugins: [],
   menuLocations: {},
   theme: "classic",
