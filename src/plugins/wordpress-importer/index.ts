@@ -37,13 +37,15 @@ export default definePlugin({
         const { RestError } = await import("@/lib/rest/core");
         const form = await request.formData();
         const file = form.get("file");
-        if (!(file instanceof File) || file.size === 0)
+        const siteUrl = String(form.get("site_url") ?? "").trim();
+        const hasFile = file instanceof File && file.size > 0;
+        if (!hasFile && !siteUrl)
           throw new RestError(
             "rest_upload_no_data",
-            "Choose an export file to import.",
+            "Choose an export file or enter your site's address.",
             400,
           );
-        if (file.size > MAX_FILE_BYTES)
+        if (hasFile && file.size > MAX_FILE_BYTES)
           throw new RestError(
             "rest_upload_too_large",
             "The export file is larger than 100 MB.",
@@ -56,11 +58,15 @@ export default definePlugin({
         const { after } = await import("next/server");
         const settings = await getPluginSettings("wordpress-importer");
         try {
-          const { job, run } = startImport(await file.text(), viewer, {
-            authorMode: mode === "me" || mode === "create" ? mode : "match",
-            downloadMedia: form.get("download_media") === "on",
-            allowPrivateHosts: Boolean(settings.allowPrivateHosts),
-          });
+          const { job, run } = startImport(
+            hasFile ? { xml: await file.text() } : { siteUrl },
+            viewer,
+            {
+              authorMode: mode === "me" || mode === "create" ? mode : "match",
+              downloadMedia: form.get("download_media") === "on",
+              allowPrivateHosts: Boolean(settings.allowPrivateHosts),
+            },
+          );
           // The import keeps running after the response; the screen polls /status
           after(run);
           return job;

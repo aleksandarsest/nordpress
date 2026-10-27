@@ -30,6 +30,7 @@ import { SETTINGS_TAG } from "@/lib/options";
 import { POSTS_TAG, type SaveIntent, savePost } from "@/lib/posts";
 import type { Viewer } from "@/lib/session";
 import { createTerm, TERMS_TAG } from "@/lib/terms";
+import { fetchLiveSite, liveToWxr } from "./live";
 import {
   autop,
   cleanContent,
@@ -109,8 +110,11 @@ function emptyCounts(): ImportCounts {
   };
 }
 
+/** An export file's contents, or the address of a live WordPress site. */
+export type ImportSource = { xml: string } | { siteUrl: string };
+
 export function startImport(
-  xml: string,
+  source: ImportSource,
   actor: Viewer,
   options: ImportOptions,
 ) {
@@ -118,7 +122,7 @@ export function startImport(
     throw new Error("An import is already running.");
   const job: ImportJob = {
     status: "running",
-    phase: "Reading the export file",
+    phase: "xml" in source ? "Reading the export file" : "Reading the site",
     progress: { done: 0, total: 0 },
     counts: emptyCounts(),
     log: [],
@@ -128,7 +132,7 @@ export function startImport(
   return {
     job,
     run: () =>
-      runImport(xml, actor, options, job).catch((error) => {
+      runImport(source, actor, options, job).catch((error) => {
         job.status = "failed";
         job.finishedAt = new Date().toISOString();
         note(job, `Import stopped: ${(error as Error).message}`);
@@ -143,12 +147,27 @@ function note(job: ImportJob, message: string) {
 }
 
 async function runImport(
-  xml: string,
+  source: ImportSource,
   actor: Viewer,
   options: ImportOptions,
   job: ImportJob,
 ) {
-  const wxr = parseWxr(xml);
+  const wxr =
+    "xml" in source
+      ? parseWxr(source.xml)
+      : liveToWxr(
+          await fetchLiveSite(
+            source.siteUrl,
+            // The same network guard as media downloads
+            (url) =>
+              options.allowPrivateHosts
+                ? Promise.resolve()
+                : assertPublicUrl(url),
+            (message) => {
+              job.phase = message;
+            },
+          ),
+        );
   job.source = wxr.site.title || wxr.site.link;
   const items = wxr.items.filter((i) => IMPORTABLE_TYPES.has(i.type));
   const attachments = options.downloadMedia

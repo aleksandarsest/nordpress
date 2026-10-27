@@ -84,15 +84,35 @@ export function ImportForm() {
         }}
       >
         <div className="grid gap-2">
-          <Label htmlFor="wxr-file">Export file (.xml)</Label>
+          <Label htmlFor="wxr-site">Your WordPress site's address</Label>
+          <input
+            id="wxr-site"
+            name="site_url"
+            type="url"
+            placeholder="https://myblog.com"
+            disabled={running}
+            className="h-9 rounded-lg border bg-transparent px-3"
+          />
+          <span className="text-muted-foreground text-xs">
+            Imports everything that's public: posts, pages, categories, tags,
+            media and approved comments. No plugin or export needed; the site
+            just has to be online.
+          </span>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="wxr-file">Or an export file (.xml)</Label>
           <input
             id="wxr-file"
             name="file"
             type="file"
             accept=".xml,application/xml,text/xml"
-            required
             disabled={running}
           />
+          <span className="text-muted-foreground text-xs">
+            From Tools → Export in WordPress. Use this for drafts, private
+            posts, menus, and author emails, which the public site doesn't
+            share.
+          </span>
         </div>
         <fieldset className="grid gap-2" disabled={running}>
           <legend className="mb-1 font-medium">Authors</legend>

@@ -368,7 +368,10 @@ Both register themselves; activate the plugin under **Plugins** or switch to the
 
 ## Importing from WordPress
 
-Activate the **WordPress Importer** plugin, then open **Tools → Import from WordPress**. In the old WordPress dashboard, export with **Tools → Export → All content** and upload that file.
+Activate the **WordPress Importer** plugin, then open **Tools → Import from WordPress**. There are two ways in:
+
+- **From the live site:** enter its address. Nordpress reads everything public through the WordPress REST API (posts, pages, categories, tags, media and approved comments), with nothing to install on the old site. Authors come across by name; emails aren't public, so their posts go to you.
+- **From an export file:** in the old dashboard, use **Tools → Export → All content** and upload the file. This also brings drafts, private posts, menus and author emails.
 
 - **Imported:** posts, pages (with parent pages), categories (with hierarchy), tags, threaded comments with their original dates and status, sticky posts, excerpts, featured images and navigation menus.
 - **Authors:** matched to existing users by email. Optionally, missing authors are created as Author accounts; set their passwords under **Users**, since the importer gives them random ones.
