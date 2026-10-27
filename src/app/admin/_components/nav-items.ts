@@ -9,6 +9,7 @@ export type NavItem = {
     | "media"
     | "pages"
     | "comments"
+    | "appearance"
     | "plugins"
     | "tools"
     | "users"
@@ -66,6 +67,29 @@ const NAV: NavDef[] = [
     href: "/admin/comments",
     icon: "comments",
     cap: "moderate_comments",
+  },
+  {
+    label: "Appearance",
+    href: "/admin/appearance/themes",
+    icon: "appearance",
+    cap: "manage_options",
+    children: [
+      {
+        label: "Themes",
+        href: "/admin/appearance/themes",
+        cap: "manage_options",
+      },
+      {
+        label: "Customize",
+        href: "/admin/appearance/customize",
+        cap: "manage_options",
+      },
+      {
+        label: "Menus",
+        href: "/admin/appearance/menus",
+        cap: "manage_options",
+      },
+    ],
   },
   {
     label: "Plugins",

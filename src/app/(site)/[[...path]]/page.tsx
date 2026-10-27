@@ -12,13 +12,8 @@ import {
   listPublished,
 } from "@/lib/posts";
 import { getTermBySlug } from "@/lib/terms";
+import { activeTheme, getThemeOptions } from "@/lib/themes";
 import { type SinglePost, SingleView } from "../_components/single";
-import {
-  ArchiveHeader,
-  Paging,
-  PostList,
-  SearchForm,
-} from "../_components/theme";
 
 type Props = PageProps<"/[[...path]]">;
 
@@ -77,6 +72,11 @@ async function resolveView(
 ): Promise<View | null> {
   const list = (query: Omit<ListQuery, "perPage">) =>
     listPublished({ ...query, perPage: settings.postsPerPage });
+  // Archive views render through the active theme's components
+  const theme = await activeTheme();
+  const options = await getThemeOptions(theme.slug);
+  const { ArchiveHeader, Empty, Paging, PostList, SearchForm } =
+    theme.components;
 
   switch (route.kind) {
     case "home": {
@@ -89,7 +89,7 @@ async function resolveView(
         if (front)
           return {
             kind: "render",
-            node: <SingleView post={front} settings={settings} isFront />,
+            node: <SingleView post={front} isFront />,
           };
       }
       const result = await list({ page: route.page });
@@ -99,11 +99,13 @@ async function resolveView(
         node: (
           <>
             {result.items.length === 0 ? (
-              <p className="text-muted-foreground">
-                Nothing has been published yet.
-              </p>
+              <Empty message="Nothing has been published yet." />
             ) : (
-              <PostList posts={result.items} settings={settings} />
+              <PostList
+                posts={result.items}
+                site={settings}
+                options={options}
+              />
             )}
             <Paging page={result.page} pages={result.pages} base="/" />
           </>
@@ -132,8 +134,12 @@ async function resolveView(
             title: page.title,
             node: (
               <>
-                <ArchiveHeader title={page.title} />
-                <PostList posts={result.items} settings={settings} />
+                <ArchiveHeader options={options} title={page.title} />
+                <PostList
+                  posts={result.items}
+                  site={settings}
+                  options={options}
+                />
                 <Paging page={1} pages={result.pages} base={`/${path}`} />
               </>
             ),
@@ -159,15 +165,18 @@ async function resolveView(
         node: (
           <>
             <ArchiveHeader
+              options={options}
               title={`${label}: ${term.name}`}
               description={term.description}
             />
             {result.items.length === 0 ? (
-              <p className="text-muted-foreground">
-                No posts in this {label.toLowerCase()} yet.
-              </p>
+              <Empty message={`No posts in this ${label.toLowerCase()} yet.`} />
             ) : (
-              <PostList posts={result.items} settings={settings} />
+              <PostList
+                posts={result.items}
+                site={settings}
+                options={options}
+              />
             )}
             <Paging
               page={result.page}
@@ -188,10 +197,11 @@ async function resolveView(
         node: (
           <>
             <ArchiveHeader
+              options={options}
               title={`Author: ${author.name}`}
               description={author.bio ?? undefined}
             />
-            <PostList posts={result.items} settings={settings} />
+            <PostList posts={result.items} site={settings} options={options} />
             <Paging
               page={result.page}
               pages={result.pages}
@@ -212,6 +222,7 @@ async function resolveView(
         node: (
           <>
             <ArchiveHeader
+              options={options}
               title={
                 route.query ? `Search results for: ${route.query}` : "Search"
               }
@@ -220,12 +231,15 @@ async function resolveView(
               <SearchForm query={route.query} />
             </div>
             {result && result.items.length === 0 && (
-              <p className="text-muted-foreground">
-                Sorry, but nothing matched your search terms. Please try again
-                with some different keywords.
-              </p>
+              <Empty message="Sorry, but nothing matched your search terms. Please try again with some different keywords." />
             )}
-            {result && <PostList posts={result.items} settings={settings} />}
+            {result && (
+              <PostList
+                posts={result.items}
+                site={settings}
+                options={options}
+              />
+            )}
             {result && (
               <Paging
                 page={result.page}
@@ -254,8 +268,8 @@ async function resolveView(
         title,
         node: (
           <>
-            <ArchiveHeader title={`Archives: ${title}`} />
-            <PostList posts={result.items} settings={settings} />
+            <ArchiveHeader options={options} title={`Archives: ${title}`} />
+            <PostList posts={result.items} site={settings} options={options} />
             <Paging
               page={result.page}
               pages={result.pages}
@@ -305,7 +319,7 @@ async function canonical(
     kind: "render",
     title: post.title,
     description: post.excerpt || makeExcerpt(post.contentText, 30),
-    node: <SingleView post={post} settings={settings} />,
+    node: <SingleView post={post} />,
   };
 }
 

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { chatAvailable } from "@/lib/ai/chat";
+import { getMenuAt } from "@/lib/menus";
 import { getSettings } from "@/lib/options";
 import { getPageTree } from "@/lib/posts";
 import { getViewer } from "@/lib/session";
+import { activeTheme, getThemeOptions } from "@/lib/themes";
 import { SiteChat } from "./_components/site-chat";
 
 export default function SiteLayout({ children }: LayoutProps<"/">) {
@@ -12,68 +14,34 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       <Suspense>
         <AdminBar />
       </Suspense>
-      <SiteHeader />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
-        {children}
-      </main>
-      <SiteFooter />
+      <ThemeLayout>{children}</ThemeLayout>
       <ChatLauncher />
     </>
   );
 }
 
-async function SiteHeader() {
-  const [settings, pages] = await Promise.all([getSettings(), getPageTree()]);
-  const menu = pages.filter(
-    (p) => !p.parentId && p.id !== settings.pageOnFront,
+// The active theme's chrome, with every menu location it declares resolved.
+async function ThemeLayout({ children }: { children: React.ReactNode }) {
+  const [theme, site, pages] = await Promise.all([
+    activeTheme(),
+    getSettings(),
+    getPageTree(),
+  ]);
+  const [options, ...resolved] = await Promise.all([
+    getThemeOptions(theme.slug),
+    ...Object.keys(theme.menuLocations).map((location) => getMenuAt(location)),
+  ]);
+  const menus = Object.fromEntries(
+    Object.keys(theme.menuLocations).map((location, i) => [
+      location,
+      resolved[i],
+    ]),
   );
-
+  const { Layout } = theme.components;
   return (
-    <header className="border-b">
-      <div className="mx-auto flex max-w-3xl flex-wrap items-end justify-between gap-4 px-4 py-6">
-        <div>
-          <Link href="/" className="font-semibold text-xl tracking-tight">
-            {settings.title}
-          </Link>
-          {settings.tagline && (
-            <p className="text-muted-foreground text-sm">{settings.tagline}</p>
-          )}
-        </div>
-        {menu.length > 0 && (
-          <nav aria-label="Primary">
-            <ul className="flex flex-wrap gap-4 text-sm">
-              {menu.map((p) => (
-                <li key={p.id}>
-                  <Link href={`/${p.path}`} className="hover:underline">
-                    {p.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-      </div>
-    </header>
-  );
-}
-
-async function SiteFooter() {
-  const settings = await getSettings();
-  return (
-    <footer className="border-t">
-      <div className="mx-auto flex max-w-3xl justify-between px-4 py-6 text-muted-foreground text-sm">
-        <span>{settings.title}</span>
-        <span>
-          <Link href="/feed" className="hover:underline">
-            RSS
-          </Link>
-          {" · "}
-          <Link href="/login" className="hover:underline">
-            Log in
-          </Link>
-        </span>
-      </div>
-    </footer>
+    <Layout site={site} menus={menus} pages={pages} options={options}>
+      {children}
+    </Layout>
   );
 }
 

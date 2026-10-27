@@ -261,6 +261,42 @@ export const postTerms = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Navigation menus
+// ---------------------------------------------------------------------------
+
+export const menus = pgTable("menus", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: text("name").notNull(),
+  ...timestamps,
+});
+
+export const menuItemTypeEnum = pgEnum("menu_item_type", [
+  "custom",
+  "post",
+  "term",
+]);
+
+export const menuItems = pgTable(
+  "menu_items",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    menuId: bigint("menu_id", { mode: "number" })
+      .notNull()
+      .references(() => menus.id, { onDelete: "cascade" }),
+    parentId: bigint("parent_id", { mode: "number" }),
+    position: integer("position").notNull().default(0),
+    type: menuItemTypeEnum("type").notNull(),
+    // posts.id or terms.id for "post"/"term" items; the link follows renames
+    objectId: bigint("object_id", { mode: "number" }),
+    url: text("url").notNull().default(""),
+    // Empty means "use the linked post or term's current title"
+    label: text("label").notNull().default(""),
+    openInNewTab: boolean("open_in_new_tab").notNull().default(false),
+  },
+  (t) => [index("menu_items_menu_idx").on(t.menuId, t.position)],
+);
+
+// ---------------------------------------------------------------------------
 // Media
 // ---------------------------------------------------------------------------
 
@@ -419,3 +455,5 @@ export type Term = typeof terms.$inferSelect;
 export type Media = typeof media.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type CommentStatus = (typeof commentStatusEnum.enumValues)[number];
+export type Menu = typeof menus.$inferSelect;
+export type MenuItem = typeof menuItems.$inferSelect;

@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { getApprovedComments, type PublicComment } from "@/lib/comments";
 import type { SiteSettings } from "@/lib/options";
 import { getViewer } from "@/lib/session";
+import { formatDate } from "@/lib/themes/helpers";
 import { CommentForm } from "./comment-form";
 import { CommentThread, type ThreadNode } from "./comment-thread";
-import { formatDate } from "./theme";
 
 function buildTree(
   list: PublicComment[],

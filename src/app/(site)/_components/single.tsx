@@ -1,102 +1,46 @@
-import Link from "next/link";
-import { UploadImage } from "@/components/upload-image";
-import { CONTENT_SIZES, responsiveContent } from "@/lib/images";
-import type { SiteSettings } from "@/lib/options";
-import { postPath, termPath } from "@/lib/permalinks";
+import { responsiveContent } from "@/lib/images";
+import { getSettings } from "@/lib/options";
 import { applyFilters } from "@/lib/plugins";
-import type { getPublished } from "@/lib/posts";
+import { activeTheme, getThemeOptions } from "@/lib/themes";
+import type { SinglePost } from "@/lib/themes/types";
 import { Comments } from "./comments";
-import { formatDate, PostMeta } from "./theme";
 
-export type SinglePost = NonNullable<Awaited<ReturnType<typeof getPublished>>>;
+export type { SinglePost };
 
-// A single post or page as the theme renders it. Previews pass `preview` to
-// leave out what only makes sense for published content (comments, links).
-export function SingleView({
+// Core side of a single post or page: prepares the body (plugin filters,
+// responsive images) and comments, then hands everything to the theme.
+export async function SingleView({
   post,
-  settings,
   isFront = false,
   preview = false,
 }: {
   post: SinglePost;
-  settings: SiteSettings;
   isFront?: boolean;
   preview?: boolean;
 }) {
-  const tags = post.terms.filter((t) => t.taxonomy === "post_tag");
+  const [theme, site] = await Promise.all([activeTheme(), getSettings()]);
+  const options = await getThemeOptions(theme.slug);
+  const { Single } = theme.components;
+  const showComments =
+    !preview && (post.type === "post" || post.commentStatus === "open");
   return (
-    <article className="grid gap-6">
-      <header className="grid gap-3">
-        {isFront ? (
-          <h1 className="sr-only">{post.title}</h1>
-        ) : (
-          <h1 className="font-semibold text-4xl tracking-tight">
-            {post.title}
-          </h1>
-        )}
-        {post.type === "post" && <PostMeta post={post} settings={settings} />}
-      </header>
-      {post.featuredPath && (
-        <UploadImage
-          path={post.featuredPath}
-          alt={post.featuredAlt ?? ""}
-          width={post.featuredWidth}
-          height={post.featuredHeight}
-          sizes={CONTENT_SIZES}
-          className="h-auto w-full rounded-lg"
-          priority
-        />
-      )}
-      <PostBody post={post} />
-      {tags.length > 0 && (
-        <footer className="flex flex-wrap gap-2 border-t pt-6 text-sm">
-          {tags.map((t) => (
-            <Link
-              key={t.id}
-              href={termPath(t.taxonomy, t.slug)}
-              className="rounded-full bg-muted px-3 py-1 hover:bg-muted/70"
-            >
-              #{t.name}
-            </Link>
-          ))}
-        </footer>
-      )}
-      {post.type === "post" && post.authorBio && (
-        <aside className="rounded-lg bg-muted/50 p-5 text-sm">
-          <p className="font-medium">About {post.authorName}</p>
-          <p className="mt-1 text-muted-foreground">{post.authorBio}</p>
-        </aside>
-      )}
-      {post.type === "post" && !preview && (
-        <p className="text-muted-foreground text-xs">
-          Published{" "}
-          <time dateTime={post.publishedAt?.toISOString()}>
-            {formatDate(post.publishedAt, settings)}
-          </time>{" "}
-          ·{" "}
-          <Link
-            href={postPath(post, settings.permalinkStructure)}
-            className="hover:underline"
-          >
-            Permalink
-          </Link>
-        </p>
-      )}
-      {!preview && (post.type === "post" || post.commentStatus === "open") && (
-        <Comments post={post} settings={settings} />
-      )}
-    </article>
+    <Single
+      post={post}
+      site={site}
+      options={options}
+      isFront={isFront}
+      preview={preview}
+      body={<PostBody post={post} />}
+      comments={showComments ? <Comments post={post} settings={site} /> : null}
+    />
   );
 }
 
-// The post body after plugins have had a chance to filter it.
 async function PostBody({ post }: { post: SinglePost }) {
   const html = await applyFilters(
     "post.contentHtml",
     await responsiveContent(post.contentHtml),
-    {
-      post,
-    },
+    { post },
   );
   return (
     <div

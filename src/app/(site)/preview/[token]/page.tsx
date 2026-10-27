@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { getSettings } from "@/lib/options";
 import { loadPreview } from "@/lib/previews";
 import { getViewer } from "@/lib/session";
 import { SingleView } from "../../_components/single";
@@ -20,10 +19,7 @@ export default async function PreviewPage({
   const viewer = await getViewer();
   if (!viewer)
     redirect(`/login?redirect_to=${encodeURIComponent(`/preview/${token}`)}`);
-  const [post, settings] = await Promise.all([
-    loadPreview(token, viewer.id),
-    getSettings(),
-  ]);
+  const post = await loadPreview(token, viewer.id);
   if (!post) notFound();
 
   return (
@@ -35,7 +31,7 @@ export default async function PreviewPage({
         <strong>Preview.</strong> This is how your unsaved changes will look.
         Nothing has been published; close this tab to keep editing.
       </div>
-      <SingleView post={post} settings={settings} preview />
+      <SingleView post={post} preview />
     </>
   );
 }

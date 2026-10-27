@@ -54,6 +54,10 @@ export type SiteSettings = {
   chatDailyLimit: number;
   /** Slugs of activated plugins (see src/plugins). */
   activePlugins: string[];
+  /** Theme location (e.g. "primary") → menu id. */
+  menuLocations: Record<string, number>;
+  /** Slug of the active theme (see src/themes). */
+  theme: string;
 };
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -85,6 +89,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   chatEnabled: false,
   chatDailyLimit: 300,
   activePlugins: [],
+  menuLocations: {},
+  theme: "classic",
 };
 
 export const SETTINGS_TAG = "options";
