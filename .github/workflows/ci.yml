@@ -1,0 +1,41 @@
+# Lint, types, tests and a production build against a real database.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: nordpress
+          POSTGRES_PASSWORD: nordpress
+          POSTGRES_DB: nordpress
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nordpress"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://nordpress:nordpress@localhost:5432/nordpress
+      BETTER_AUTH_SECRET: ci-only-secret-not-for-production-0123456789
+      BETTER_AUTH_URL: http://localhost:3000
+      SITE_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm migrate
+      - run: pnpm build
