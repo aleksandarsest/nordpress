@@ -26,6 +26,7 @@ import {
   Strikethrough,
   Underline,
   Undo,
+  Video,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { editorExtensions } from "@/lib/editor-extensions";
 import { cn } from "@/lib/utils";
+import { parseVideoUrl } from "@/lib/video-embed";
 import { MediaPicker } from "./media-picker";
 
 export function RichTextEditor({
@@ -91,6 +93,17 @@ function Toolbar({
 }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [formsOpen, setFormsOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const video = parseVideoUrl(videoUrl);
+
+  function insertVideo() {
+    if (!video) return;
+    // Embeds live at the top level of the document
+    chain().insertContent({ type: "videoEmbed", attrs: video }).run();
+    setVideoOpen(false);
+    setVideoUrl("");
+  }
   const [linkHref, setLinkHref] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -217,6 +230,9 @@ function Toolbar({
       <Tool label="Image" onClick={() => setPickerOpen(true)}>
         <ImageIcon />
       </Tool>
+      <Tool label="Video" onClick={() => setVideoOpen(true)}>
+        <Video />
+      </Tool>
       <Tool label="Form" onClick={() => setFormsOpen(true)}>
         <ClipboardList />
       </Tool>
@@ -265,6 +281,44 @@ function Toolbar({
             </Button>
             <Button type="button" onClick={applyLink}>
               {linkHref ? "Apply" : "Remove link"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Embed a video</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            aria-label="Video address"
+            placeholder="https://www.youtube.com/watch?v=… or https://vimeo.com/…"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                insertVideo();
+              }
+            }}
+          />
+          <p className="text-muted-foreground text-xs">
+            {videoUrl && !video
+              ? "That isn't a YouTube or Vimeo video address."
+              : "YouTube and Vimeo. Videos use YouTube's privacy-enhanced mode and Vimeo's do-not-track option."}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVideoOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={insertVideo} disabled={!video}>
+              Embed
             </Button>
           </div>
         </DialogContent>

@@ -216,6 +216,10 @@ Hooks run in priority order (lower first, default 10). An error in one plugin is
 
 Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
 
+## Video embeds
+
+The editor's **Video** button embeds YouTube and Vimeo videos from their address. Only the provider and a checked video ID are stored, and the player is built from them using YouTube's privacy-enhanced mode and Vimeo's do-not-track option. Iframes from anywhere else are dropped, including ones pasted into imported or API-submitted HTML. WordPress video embeds come across on import. In feeds and Markdown copies, a video becomes a link.
+
 ## Site setup
 
 After installing, Nordpress opens **Set up your site** (also on the dashboard until it's done). Describe the site in your own words, and Claude drafts a complete starter site:

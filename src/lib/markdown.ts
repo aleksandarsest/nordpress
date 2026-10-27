@@ -1,5 +1,6 @@
 import type { JSONContent } from "@tiptap/core";
 import { Marked } from "marked";
+import { isValidVideo, videoPageUrl } from "./video-embed";
 
 // Turns a stored editor document into Markdown for AI agents and other
 // text-first readers. Pure: URLs are made absolute by the caller's function.
@@ -98,6 +99,12 @@ function block(node: JSONContent, o: MarkdownOptions): string {
       if (!src) return "";
       const alt = String(node.attrs?.alt ?? "").replace(ESCAPE, "\\$1");
       return `![${alt}](${o.absolute(String(src))})`;
+    }
+    case "videoEmbed": {
+      const { provider, id } = node.attrs ?? {};
+      return isValidVideo(provider, id)
+        ? `[Video](${videoPageUrl(provider, id)})`
+        : "";
     }
     case "formEmbed": {
       const id = Number(node.attrs?.formId);

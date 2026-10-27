@@ -1,6 +1,7 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import StarterKit from "@tiptap/starter-kit";
+import { isValidVideo, parseVideoUrl, videoEmbedSrc } from "./video-embed";
 
 // An embedded form, rendered live on the site. It may only sit at the top
 // level of a document, so the renderer can split the HTML around it.
@@ -35,6 +36,66 @@ export const FormEmbed = Node.create({
   renderText: () => "",
 });
 
+// A YouTube or Vimeo video. Only a provider and a checked id are stored;
+// the iframe is built from them, so content can't point it anywhere else.
+export const VideoEmbed = Node.create({
+  name: "videoEmbed",
+  group: "embed",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      provider: { default: null, rendered: false },
+      id: { default: null, rendered: false },
+    };
+  },
+  parseHTML() {
+    const fromUrl = (url: string | null) => {
+      const video = url ? parseVideoUrl(url) : null;
+      return video ?? false;
+    };
+    return [
+      {
+        tag: "figure[data-video]",
+        getAttrs: (el) => {
+          const provider = el.getAttribute("data-video");
+          const id = el.getAttribute("data-id");
+          return isValidVideo(provider, id) ? { provider, id } : false;
+        },
+      },
+      { tag: "iframe[src]", getAttrs: (el) => fromUrl(el.getAttribute("src")) },
+      // WordPress embed blocks keep the video's address as text
+      {
+        tag: "figure.wp-block-embed",
+        getAttrs: (el) => fromUrl(el.textContent?.trim() ?? null),
+      },
+    ];
+  },
+  renderHTML({ node }) {
+    const { provider, id } = node.attrs;
+    if (!isValidVideo(provider, id)) return ["figure"];
+    return [
+      "figure",
+      { class: "video-embed", "data-video": provider, "data-id": id },
+      [
+        "iframe",
+        {
+          src: videoEmbedSrc(provider, id),
+          title: provider === "youtube" ? "YouTube video" : "Vimeo video",
+          loading: "lazy",
+          allow:
+            "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen",
+          allowfullscreen: "true",
+          referrerpolicy: "strict-origin-when-cross-origin",
+          style: "aspect-ratio: 16 / 9; width: 100%; border: 0;",
+        },
+      ],
+    ];
+  },
+  renderText: () => "",
+});
+
 const Document = Node.create({
   name: "doc",
   topNode: true,
@@ -52,4 +113,5 @@ export const editorExtensions = [
   Document,
   Image,
   FormEmbed,
+  VideoEmbed,
 ];
