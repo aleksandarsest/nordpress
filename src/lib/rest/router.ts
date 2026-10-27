@@ -152,9 +152,13 @@ function describeRoutes(prefix = "") {
   );
 }
 
+const NAMESPACES = ["/wp/v2", "/nordpress/v1"];
+
 async function index(path: string): Promise<RestResult> {
-  if (path === "/wp/v2")
-    return { data: { namespace: "wp/v2", routes: describeRoutes("/wp/v2") } };
+  if (NAMESPACES.includes(path))
+    return {
+      data: { namespace: path.slice(1), routes: describeRoutes(path) },
+    };
   const settings = await getSettings();
   return {
     data: {
@@ -186,7 +190,7 @@ export async function dispatch(
   if (method === "HEAD") method = "GET";
 
   try {
-    if (path === "/" || path === "/wp/v2") {
+    if (path === "/" || NAMESPACES.includes(path)) {
       if (method !== "GET")
         throw new RestError(
           "rest_no_route",

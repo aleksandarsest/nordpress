@@ -1,8 +1,11 @@
+import { JsonLd } from "@/components/json-ld";
+import { pathsOf } from "@/lib/ai-readable";
 import { getPublicForm } from "@/lib/forms";
 import { splitFormEmbeds } from "@/lib/forms/embed";
 import { responsiveContent } from "@/lib/images";
 import { getSettings } from "@/lib/options";
 import { applyFilters } from "@/lib/plugins";
+import { postJsonLd } from "@/lib/structured-data";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
 import type { SinglePost } from "@/lib/themes/types";
 import { Comments } from "./comments";
@@ -26,16 +29,24 @@ export async function SingleView({
   const { Single } = theme.components;
   const showComments =
     !preview && (post.type === "post" || post.commentStatus === "open");
+  const paths = preview ? null : await pathsOf(post, site);
   return (
-    <Single
-      post={post}
-      site={site}
-      options={options}
-      isFront={isFront}
-      preview={preview}
-      body={<PostBody post={post} preview={preview} />}
-      comments={showComments ? <Comments post={post} settings={site} /> : null}
-    />
+    <>
+      {paths && (
+        <JsonLd data={postJsonLd(post, site, paths.html, paths.markdown)} />
+      )}
+      <Single
+        post={post}
+        site={site}
+        options={options}
+        isFront={isFront}
+        preview={preview}
+        body={<PostBody post={post} preview={preview} />}
+        comments={
+          showComments ? <Comments post={post} settings={site} /> : null
+        }
+      />
+    </>
   );
 }
 

@@ -63,6 +63,11 @@ export interface FilterHooks {
     html: string,
     context: { post: Pick<Post, "id" | "type" | "title" | "contentText"> },
   ];
+  /** Markdown version of a post served to AI agents at <permalink>.md. */
+  "post.markdown": [
+    markdown: string,
+    context: { post: Pick<Post, "id" | "type" | "title" | "contentText"> },
+  ];
   /** Status a new comment from a non-moderator gets. */
   "comment.status": [status: CommentStatus, comment: CommentCheck];
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { JsonLd } from "@/components/json-ld";
 import { hybridSearch } from "@/lib/ai/search";
+import { markdownPath } from "@/lib/ai-readable";
 import { makeExcerpt } from "@/lib/content";
 import { getSettings, type SiteSettings } from "@/lib/options";
 import { postPath, type Route, resolveRoute, termPath } from "@/lib/permalinks";
@@ -11,6 +13,7 @@ import {
   type ListQuery,
   listPublished,
 } from "@/lib/posts";
+import { websiteJsonLd } from "@/lib/structured-data";
 import { getTermBySlug } from "@/lib/terms";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
 import { type SinglePost, SingleView } from "../_components/single";
@@ -63,6 +66,8 @@ type View =
       node: React.ReactNode;
       title?: string;
       description?: string;
+      /** Address of the Markdown version, for <link rel="alternate">. */
+      markdown?: string;
     };
 
 async function resolveView(
@@ -98,6 +103,7 @@ async function resolveView(
         kind: "render",
         node: (
           <>
+            {route.page === 1 && <JsonLd data={websiteJsonLd(settings)} />}
             {result.items.length === 0 ? (
               <Empty message="Nothing has been published yet." />
             ) : (
@@ -317,6 +323,7 @@ async function canonical(
   if (expected !== requested) return { kind: "redirect", to: expected };
   return {
     kind: "render",
+    markdown: markdownPath(expected),
     title: post.title,
     description: post.excerpt || makeExcerpt(post.contentText, 30),
     node: <SingleView post={post} />,
@@ -331,5 +338,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   if (!settings.installed) return {};
   const view = await resolveView(route, settings, requested);
   if (view?.kind !== "render") return {};
-  return { title: view.title, description: view.description };
+  return {
+    title: view.title,
+    description: view.description,
+    ...(view.markdown && {
+      alternates: { types: { "text/markdown": view.markdown } },
+    }),
+  };
 }

@@ -77,6 +77,33 @@ export default async function ReadingSettingsPage() {
           <Checkbox name="blog_public" defaultChecked={!s.blogPublic} />{" "}
           Discourage search engines from indexing this site
         </Label>
+        <fieldset className="grid gap-2">
+          <legend className="mb-1 font-medium text-sm">AI crawlers</legend>
+          <Label className="items-start font-normal">
+            <Checkbox name="ai_search" defaultChecked={s.aiSearchCrawlers} />
+            <span>
+              Allow AI search and assistants
+              <span className="block text-muted-foreground text-xs">
+                ChatGPT search, Claude, Perplexity and similar tools can read
+                and cite your pages when answering people.
+              </span>
+            </span>
+          </Label>
+          <Label className="items-start font-normal">
+            <Checkbox
+              name="ai_training"
+              defaultChecked={s.aiTrainingCrawlers}
+            />
+            <span>
+              Allow AI training
+              <span className="block text-muted-foreground text-xs">
+                Crawlers such as GPTBot, ClaudeBot, Google-Extended and Common
+                Crawl may collect your content to train models. Published in
+                robots.txt, which well-behaved crawlers follow.
+              </span>
+            </span>
+          </Label>
+        </fieldset>
         <div>
           <SubmitButton>Save Changes</SubmitButton>
         </div>

@@ -38,6 +38,8 @@ const reading = z.object({
   pageForPosts: z.number().nullable(),
   postsPerPage: z.number().int().min(1).max(100),
   blogPublic: z.boolean(),
+  aiSearchCrawlers: z.boolean(),
+  aiTrainingCrawlers: z.boolean(),
 });
 
 const discussion = z.object({
@@ -96,6 +98,8 @@ export async function saveReadingAction(
       pageForPosts: optionalId(formData, "page_for_posts"),
       postsPerPage: Number(str(formData, "posts_per_page")),
       blogPublic: formData.get("blog_public") !== "on",
+      aiSearchCrawlers: formData.get("ai_search") === "on",
+      aiTrainingCrawlers: formData.get("ai_training") === "on",
     });
     if (values.showOnFront === "page" && !values.pageOnFront) {
       throw new Error("Choose a page to show as the homepage.");

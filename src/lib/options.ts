@@ -38,6 +38,10 @@ export type SiteSettings = {
   pageForPosts: number | null;
   defaultCategory: number | null;
   blogPublic: boolean;
+  /** Let AI search engines and assistants (ChatGPT search, Claude, Perplexity) read the site. */
+  aiSearchCrawlers: boolean;
+  /** Let crawlers that collect AI training data (GPTBot, ClaudeBot, CCBot) read the site. */
+  aiTrainingCrawlers: boolean;
   // Discussion
   defaultCommentStatus: "open" | "closed";
   requireNameEmail: boolean;
@@ -76,6 +80,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   pageForPosts: null,
   defaultCategory: null,
   blogPublic: true,
+  aiSearchCrawlers: true,
+  aiTrainingCrawlers: true,
   defaultCommentStatus: "open",
   requireNameEmail: true,
   commentRegistration: false,

@@ -175,6 +175,16 @@ Hooks run in priority order (lower first, default 10). An error in one plugin is
 
 Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
 
+## Readable by AI
+
+More and more readers are AI assistants and agents acting for people. Nordpress gives them clean, cheap-to-read versions of the site:
+
+- **Markdown copies:** every post and page is also served as Markdown at its permalink plus `.md` (`/my-post.md`), converted from the editor document. Embedded forms become links to their JSON Schema, so an agent can fill them in. HTML pages point to it with `<link rel="alternate" type="text/markdown">`, and the Markdown sends a canonical `Link` header back to the HTML page. Plugins can change it with the `post.markdown` filter.
+- **[`/llms.txt`](https://llmstxt.org):** a Markdown index of the site (pages, the 50 latest posts, the feed and APIs). `/llms-full.txt` holds the full text of every page and the 100 latest posts.
+- **Structured data:** JSON-LD on every post (`BlogPosting`) and page (`WebPage`), and `WebSite` with a search action on the home page.
+- **Crawler controls:** under **Settings → Reading**, allow or block AI search and assistants (ChatGPT search, Claude, Perplexity) and AI training crawlers (GPTBot, ClaudeBot, Google-Extended, Common Crawl and others) separately. Both go into `robots.txt` as per-bot rules and a [`Content-Signal`](https://contentsignals.org) line. Well-behaved crawlers follow it; it isn't enforcement.
+- **Real status codes for AI crawlers:** they get fully rendered pages with real 404s and redirects, like search engines.
+
 ## Forms
 
 Build forms under **Forms** and drop them into any post or page with the editor's **Form** button. Ten field types are available: short text, email, phone, website, number, date, paragraph, dropdown, multiple choice and checkboxes.
@@ -233,6 +243,7 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | `wp_comments` | `comments` table; rules in `src/lib/comments.ts` |
 | Application passwords | `app_passwords` (SHA-256 hashed) |
 | Nav menus (`nav_menu_item` posts) | `menus` + `menu_items` |
+| SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/structured-data.ts`, `src/lib/ai-readable.ts` |
 | Form plugins (Contact Form 7, Gravity Forms) | `forms` + `form_submissions`, built in |
 | Themes and `theme_mods` | `src/themes/*`, options saved as `theme:<slug>` |
 
