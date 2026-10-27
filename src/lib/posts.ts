@@ -29,6 +29,7 @@ import {
   terms,
   user,
 } from "@/db/schema";
+import { type AiSource, withAiSource } from "./ai-provenance";
 import { type Actor, canOnPost, hasCap } from "./capabilities";
 import { renderContent } from "./content";
 import { getSettings } from "./options";
@@ -422,6 +423,8 @@ export type SavePostInput = {
   authorId?: string;
   /** Where the save came from; lets plugins ignore bulk imports. */
   source?: "app" | "import";
+  /** Set when AI wrote some of this content (see src/lib/ai-provenance.ts). */
+  aiSource?: AiSource;
 };
 
 export class PostError extends Error {}
@@ -546,6 +549,9 @@ export async function savePost(actor: Actor, input: SavePostInput) {
       input.type === "post" && hasCap(actor, "edit_others_posts")
         ? !!input.sticky
         : (existing?.sticky ?? false),
+    ...(input.aiSource && {
+      meta: withAiSource(existing?.meta, input.aiSource),
+    }),
   };
 
   const saved = await db.transaction(async (tx) => {

@@ -155,6 +155,7 @@ Set `ANTHROPIC_API_KEY` in `.env.local` and restart. Without a key, the AI contr
 - **Alt text:** **Generate with AI** on a media item, a bulk **Generate with AI** for images missing alt text, and optional automatic alt text for new uploads.
 - **Forms:** draft a whole form from a description, and have each response checked for spam and summarized (see [Forms](#forms)).
 - **Brand voice:** under **Settings → AI**, describe the site and write a voice and style guide (tone, audience, words to use or avoid, claims never to make). The writing assistant, suggestions, form drafting, the site chat and the admin assistant all follow it.
+- **AI transparency:** Nordpress records when AI-written text is accepted into a post: from the writing assistant, the admin assistant, an MCP agent or site setup. Posts show an **AI-assisted** badge in the admin, and the Markdown copies for AI crawlers say so. Turn on **Tell readers when AI helped write a post** under **Settings → AI** to show readers a short note too.
 - **Settings → AI:** turn features on or off, pick the model (Claude Opus 5.5 by default; Sonnet 5.5 or Haiku 5.5 for lower cost), and see 30 days of usage with estimated cost.
 
 Model output is treated as untrusted: HTML is passed through the editor's schema before it's shown or inserted, and suggested categories are checked against real ones. Declined requests automatically retry on a fallback model where Anthropic supports it (`fallbacks: "default"`).

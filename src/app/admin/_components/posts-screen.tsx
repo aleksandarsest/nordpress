@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PostStatus } from "@/db/schema";
+import { aiProvenance, describeAiSources } from "@/lib/ai-provenance";
 import { canOnPost, hasCap } from "@/lib/capabilities";
 import { getSettings } from "@/lib/options";
 import { postPath } from "@/lib/permalinks";
@@ -175,6 +176,15 @@ export async function PostsScreen({
                       {post.sticky && (
                         <Badge variant="secondary" className="ml-2">
                           Sticky
+                        </Badge>
+                      )}
+                      {aiProvenance(post.meta) && (
+                        <Badge
+                          variant="outline"
+                          className="ml-2"
+                          title={`Written with help from ${describeAiSources(aiProvenance(post.meta)?.sources ?? [])}`}
+                        >
+                          AI-assisted
                         </Badge>
                       )}
                     </div>

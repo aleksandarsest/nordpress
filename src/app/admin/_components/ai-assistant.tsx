@@ -62,10 +62,13 @@ export function AiAssistant({
   editor,
   title,
   onExcerpt,
+  onApplied,
 }: {
   editor: Editor;
   title: () => string;
   onExcerpt: (text: string) => void;
+  /** Called when AI text is accepted into the post or its excerpt. */
+  onApplied?: () => void;
 }) {
   const [run, setRun] = useState<Run | null>(null);
   const [askOpen, setAskOpen] = useState(false);
@@ -181,6 +184,7 @@ export function AiAssistant({
     } else {
       editor.chain().focus().insertContentAt(run.target.to, html).run();
     }
+    onApplied?.();
     close();
   }
 

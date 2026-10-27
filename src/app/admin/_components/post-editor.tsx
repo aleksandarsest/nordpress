@@ -74,6 +74,8 @@ export function PostEditor({
   const [state, formAction, pending] = useActionState(savePostAction, null);
   const [content, setContent] = useState<JSONContent | null>(post.content);
   const [dirty, setDirty] = useState(false);
+  // Whether AI text was accepted into this post since it was opened
+  const [aiAssisted, setAiAssisted] = useState(false);
   const [visibility, setVisibility] = useState(
     post.status === "private" ? "private" : "public",
   );
@@ -171,6 +173,7 @@ export function PostEditor({
     >
       {post.id && <input type="hidden" name="id" value={post.id} />}
       <input type="hidden" name="type" value={post.type} />
+      {aiAssisted && <input type="hidden" name="ai_assisted" value="1" />}
       <input
         type="hidden"
         name="content"
@@ -226,6 +229,7 @@ export function PostEditor({
                       setExcerpt(text);
                       setDirty(true);
                     }}
+                    onApplied={() => setAiAssisted(true)}
                   />
                 )
               : undefined

@@ -60,6 +60,8 @@ export type SiteSettings = {
   siteAbout: string;
   /** Tone, audience and style rules every AI feature follows. */
   brandVoice: string;
+  /** Tell readers when AI helped write a post or page. */
+  aiDisclosure: boolean;
   /** Let AI agents connect over MCP at /mcp with an application password. */
   mcpEnabled: boolean;
   /**
@@ -109,6 +111,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   chatDailyLimit: 300,
   siteAbout: "",
   brandVoice: "",
+  aiDisclosure: false,
   mcpEnabled: true,
   agentsCanPublish: false,
   activePlugins: [],

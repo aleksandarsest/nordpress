@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Post } from "@/db/schema";
 import { queueIndex } from "../ai/embeddings";
+import type { AiSource } from "../ai-provenance";
 import { markdownPath } from "../ai-readable";
 import { type Capability, canOnPost, hasCap } from "../capabilities";
 import {
@@ -102,6 +103,9 @@ export class AgentError extends Error {
 }
 
 const denied = (message: string) => new AgentError(message, "denied");
+
+const aiSourceOf = (ctx: ToolContext): AiSource =>
+  ctx.client === "admin" ? "assistant" : "agent";
 
 const LIVE: Post["status"][] = ["publish", "future", "private"];
 
@@ -523,6 +527,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
                   : []
               : [],
           tags: args.type === "post" ? args.tags : undefined,
+          aiSource: aiSourceOf(ctx),
         });
         invalidate(POSTS_TAG, TERMS_TAG);
         queueIndex(post.id);
@@ -626,6 +631,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
               ? (await categoryIds(args.categories, true)).ids
               : existing.categoryIds,
           tags: type === "post" ? (args.tags ?? existing.tags) : undefined,
+          aiSource: aiSourceOf(ctx),
         });
         invalidate(POSTS_TAG, TERMS_TAG);
         queueIndex(post.id);

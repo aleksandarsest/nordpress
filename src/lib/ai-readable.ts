@@ -1,4 +1,5 @@
 import "server-only";
+import { aiProvenance, describeAiSources } from "./ai-provenance";
 import { formatInZone } from "./dates";
 import { docToMarkdown } from "./markdown";
 import type { SiteSettings } from "./options";
@@ -148,6 +149,8 @@ export async function postMarkdown(
     categories.length &&
       `Categories: ${categories.map((t) => `[${t.name}](${siteUrl(termPath(t.taxonomy, t.slug))})`).join(", ")}`,
     tags.length && `Tags: ${tags.map((t) => t.name).join(", ")}`,
+    aiProvenance(post.meta) &&
+      `AI assistance: written with help from ${describeAiSources(aiProvenance(post.meta)?.sources ?? [])}`,
   ].filter(Boolean);
   const body = docToMarkdown(post.content, markdownOptions);
   const markdown = [

@@ -132,6 +132,21 @@ export default async function AiSettingsPage() {
           </div>
         </fieldset>
         <fieldset className="grid gap-3 border-t pt-6">
+          <legend className="mb-2 font-semibold text-base">Transparency</legend>
+          <Label className="items-start font-normal">
+            <Checkbox name="ai_disclosure" defaultChecked={s.aiDisclosure} />
+            <span>
+              Tell readers when AI helped write a post or page
+              <span className="block text-muted-foreground text-xs">
+                Nordpress records when text from the writing assistant, the
+                admin assistant, an agent or site setup is accepted into a post.
+                With this on, those posts show a short note to readers. The
+                Markdown copies for AI crawlers always say so.
+              </span>
+            </span>
+          </Label>
+        </fieldset>
+        <fieldset className="grid gap-3 border-t pt-6">
           <legend className="mb-2 font-semibold text-base">Site chat</legend>
           <Label className="font-normal">
             <Checkbox name="chat_enabled" defaultChecked={s.chatEnabled} /> Show

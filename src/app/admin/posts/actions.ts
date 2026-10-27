@@ -73,6 +73,9 @@ export async function savePostAction(
         .map(Number)
         .filter(Number.isInteger),
       tags: str(formData, "tags").split(","),
+      ...(formData.get("ai_assisted") === "1" && {
+        aiSource: "writing-assistant" as const,
+      }),
     });
     id = saved.id;
     created = !formData.get("id");

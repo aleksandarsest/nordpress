@@ -1,4 +1,5 @@
 import { JsonLd } from "@/components/json-ld";
+import { aiProvenance } from "@/lib/ai-provenance";
 import { pathsOf } from "@/lib/ai-readable";
 import { getPublicForm } from "@/lib/forms";
 import { splitFormEmbeds } from "@/lib/forms/embed";
@@ -41,7 +42,17 @@ export async function SingleView({
         options={options}
         isFront={isFront}
         preview={preview}
-        body={<PostBody post={post} preview={preview} />}
+        body={
+          <>
+            {site.aiDisclosure && aiProvenance(post.meta) && (
+              <p className="not-prose mb-6 text-muted-foreground text-xs">
+                This {post.type === "page" ? "page" : "post"} was written with
+                AI assistance.
+              </p>
+            )}
+            <PostBody post={post} preview={preview} />
+          </>
+        }
         comments={
           showComments ? <Comments post={post} settings={site} /> : null
         }

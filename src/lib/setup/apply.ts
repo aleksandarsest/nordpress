@@ -31,7 +31,7 @@ const SAMPLE_SLUGS = ["hello-world", "sample-page"];
 export async function applySitePlan(
   viewer: Viewer,
   plan: SitePlan,
-  options: { trashSamples: boolean },
+  options: { trashSamples: boolean; aiDrafted: boolean },
 ) {
   const settings = await getSettings();
   const nordOptions = await getThemeOptions("nord");
@@ -89,6 +89,7 @@ export async function applySitePlan(
       const saved = await savePost(viewer, {
         type: "page",
         intent: "publish",
+        ...(options.aiDrafted && { aiSource: "site-setup" as const }),
         title: page.title,
         content,
         commentStatus: "closed",
@@ -101,6 +102,7 @@ export async function applySitePlan(
       const saved = await savePost(viewer, {
         type: "post",
         intent: "publish",
+        ...(options.aiDrafted && { aiSource: "site-setup" as const }),
         title: post.title,
         excerpt: post.excerpt,
         content: doc(post.content),
@@ -120,6 +122,7 @@ export async function applySitePlan(
       const blog = await savePost(viewer, {
         type: "page",
         intent: "publish",
+        ...(options.aiDrafted && { aiSource: "site-setup" as const }),
         title: "Blog",
         content: null,
         commentStatus: "closed",

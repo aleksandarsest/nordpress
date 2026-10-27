@@ -42,7 +42,7 @@ export async function draftPlanAction(input: {
 
 export async function applyPlanAction(
   plan: SitePlan,
-  options: { trashSamples: boolean },
+  options: { trashSamples: boolean; aiDrafted: boolean },
 ): Promise<{
   result?: Awaited<ReturnType<typeof applySitePlan>>;
   error?: string;

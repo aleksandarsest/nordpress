@@ -41,6 +41,7 @@ export function SetupWizard({
   const [kind, setKind] = useState<SiteKind>("business");
   const [description, setDescription] = useState("");
   const [plan, setPlan] = useState<SitePlan | null>(null);
+  const [aiDrafted, setAiDrafted] = useState(false);
   const [trashSamples, setTrashSamples] = useState(fresh);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ frontPage: number | null } | null>(
@@ -57,6 +58,7 @@ export function SetupWizard({
         return;
       }
       setPlan(r.plan);
+      setAiDrafted(mode === "ai");
       setStep("review");
     });
   }
@@ -65,7 +67,7 @@ export function SetupWizard({
     if (!plan) return;
     setError(null);
     start(async () => {
-      const r = await applyPlanAction(plan, { trashSamples });
+      const r = await applyPlanAction(plan, { trashSamples, aiDrafted });
       if (r.error || !r.result) {
         setError(r.error ?? "Couldn't create the site.");
         return;

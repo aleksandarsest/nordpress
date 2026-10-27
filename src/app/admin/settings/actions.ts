@@ -166,6 +166,7 @@ const ai = z.object({
   chatDailyLimit: z.number().int().min(1).max(100_000),
   siteAbout: z.string().trim().max(4000),
   brandVoice: z.string().trim().max(4000),
+  aiDisclosure: z.boolean(),
 });
 
 export async function saveAiAction(
@@ -182,6 +183,7 @@ export async function saveAiAction(
         chatDailyLimit: Number(str(formData, "chat_daily_limit")),
         siteAbout: str(formData, "site_about"),
         brandVoice: str(formData, "brand_voice"),
+        aiDisclosure: formData.get("ai_disclosure") === "on",
       }),
     );
     return { message: "Settings saved." };
