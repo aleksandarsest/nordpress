@@ -33,7 +33,8 @@ async function InstallForm() {
       <CardHeader>
         <CardTitle>Welcome to Nordpress</CardTitle>
         <CardDescription>
-          Set up your site and its first administrator account. You can change all of this later.
+          Set up your site and its first administrator account. You can change
+          all of this later.
         </CardDescription>
       </CardHeader>
       <CardContent>

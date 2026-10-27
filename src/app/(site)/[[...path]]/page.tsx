@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { hybridSearch } from "@/lib/ai/search";
 import { makeExcerpt } from "@/lib/content";
 import { mediaUrl } from "@/lib/media";
@@ -51,15 +50,11 @@ async function routeFor({
   };
 }
 
-export default function SitePage(props: Props) {
-  return (
-    <Suspense fallback={<ContentSkeleton />}>
-      <Resolved {...props} />
-    </Suspense>
-  );
-}
+// Resolved before anything streams, so missing content gets a real 404
+// status and canonical redirects are real HTTP redirects.
+export const instant = false;
 
-async function Resolved(props: Props) {
+export default async function SitePage(props: Props) {
   const [{ route, requested }, settings] = await Promise.all([
     routeFor(props),
     getSettings(),
@@ -67,7 +62,7 @@ async function Resolved(props: Props) {
   if (!settings.installed) redirect("/install");
   const view = await resolveView(route, settings, requested);
   if (!view) notFound();
-  if (view.kind === "redirect") redirect(view.to);
+  if (view.kind === "redirect") permanentRedirect(view.to);
   return view.node;
 }
 
@@ -377,16 +372,6 @@ function renderSingle(post: Single, settings: SiteSettings, isFront = false) {
         <Comments post={post} settings={settings} />
       )}
     </article>
-  );
-}
-
-function ContentSkeleton() {
-  return (
-    <div className="grid animate-pulse gap-4" aria-hidden>
-      <div className="h-9 w-2/3 rounded bg-muted" />
-      <div className="h-4 w-1/3 rounded bg-muted" />
-      <div className="h-40 rounded bg-muted" />
-    </div>
   );
 }
 
