@@ -11,19 +11,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listAppPasswords } from "@/lib/app-passwords";
+import { listConnectedApps } from "@/lib/oauth";
 import { requireViewer } from "@/lib/session";
 import { getUser } from "@/lib/users";
 import { NewAppPassword } from "../_components/app-passwords";
 import { UserForm } from "../_components/user-form";
-import { revokeAppPasswordAction } from "./actions";
+import { disconnectAppAction, revokeAppPasswordAction } from "./actions";
 
 export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
   const viewer = await requireViewer();
-  const [user, passwords] = await Promise.all([
+  const [user, passwords, apps] = await Promise.all([
     getUser(viewer.id),
     listAppPasswords(viewer.id),
+    listConnectedApps(viewer.id),
   ]);
   if (!user) notFound();
 
@@ -80,6 +82,40 @@ export default async function ProfilePage() {
               </TableBody>
             </Table>
           </div>
+        )}
+      </section>
+      <section className="mt-10 grid max-w-3xl gap-3 text-sm">
+        <h2 className="font-semibold text-lg">Connected apps</h2>
+        <p className="text-muted-foreground">
+          AI apps you've allowed to work on the site as you, such as Claude
+          connected through MCP. Disconnecting one cuts it off at once.
+        </p>
+        {apps.length === 0 ? (
+          <p className="text-muted-foreground">No apps connected.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {apps.map((app) => (
+              <li
+                key={`${app.clientId}-${app.createdAt.toISOString()}`}
+                className="flex items-center justify-between gap-3 rounded-lg border p-3"
+              >
+                <span>
+                  <strong>{app.name}</strong>
+                  <span className="block text-muted-foreground text-xs">
+                    Connected {app.createdAt.toLocaleDateString("en")}
+                    {app.lastUsedAt &&
+                      ` · last used ${app.lastUsedAt.toLocaleDateString("en")}`}
+                  </span>
+                </span>
+                <form action={disconnectAppAction}>
+                  <input type="hidden" name="client_id" value={app.clientId} />
+                  <Button type="submit" variant="destructive" size="xs">
+                    Disconnect
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </>

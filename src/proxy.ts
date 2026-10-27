@@ -41,6 +41,6 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
 export const config = {
   // Pages, Markdown copies and llms.txt; not assets, the admin or APIs
   matcher: [
-    "/((?!_next/|api/|admin|wp-json|mcp|uploads/|favicon|robots\\.txt|sitemap\\.xml|feed|login|register|install|forgot-password|reset-password|preview/|.*\\.(?:png|jpg|jpeg|gif|webp|avif|svg|ico|css|js|map|woff2?|xml|json)$).*)",
+    "/((?!_next/|api/|admin|wp-json|mcp|oauth/|\\.well-known/|uploads/|favicon|robots\\.txt|sitemap\\.xml|feed|login|register|install|forgot-password|reset-password|preview/|.*\\.(?:png|jpg|jpeg|gif|webp|avif|svg|ico|css|js|map|woff2?|xml|json)$).*)",
   ],
 };

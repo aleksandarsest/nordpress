@@ -702,6 +702,59 @@ export const memberships = pgTable("memberships", {
 });
 
 // ---------------------------------------------------------------------------
+// OAuth for MCP clients (Claude, ...): registered apps, one-time codes and
+// tokens. Secrets are stored only as SHA-256 hashes.
+// ---------------------------------------------------------------------------
+
+export const oauthClients = pgTable("oauth_clients", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  redirectUris: jsonb("redirect_uris").$type<string[]>().notNull(),
+  createdAt: timestamps.createdAt,
+});
+
+export const oauthCodes = pgTable("oauth_codes", {
+  codeHash: text("code_hash").primaryKey(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => oauthClients.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  redirectUri: text("redirect_uri").notNull(),
+  codeChallenge: text("code_challenge").notNull(),
+  scope: text("scope").notNull(),
+  resource: text("resource").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+export const oauthTokens = pgTable(
+  "oauth_tokens",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    accessHash: text("access_hash").notNull().unique(),
+    refreshHash: text("refresh_hash").notNull().unique(),
+    clientId: text("client_id")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    scope: text("scope").notNull(),
+    resource: text("resource").notNull(),
+    accessExpiresAt: timestamp("access_expires_at", {
+      withTimezone: true,
+    }).notNull(),
+    refreshExpiresAt: timestamp("refresh_expires_at", {
+      withTimezone: true,
+    }).notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [index("oauth_tokens_user_idx").on(t.userId)],
+);
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 

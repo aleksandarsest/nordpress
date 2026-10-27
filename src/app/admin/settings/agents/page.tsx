@@ -74,35 +74,23 @@ export default async function AgentsSettingsPage() {
 
       <section className="mb-10 grid max-w-3xl gap-3 text-sm">
         <h2 className="font-semibold text-lg">Connect an agent</h2>
-        <ol className="grid list-decimal gap-3 pl-5">
-          <li>
-            Create an application password under{" "}
-            <Link href="/admin/profile" className="text-primary underline">
-              Profile
-            </Link>
-            , named after the agent (e.g. “Claude Code”) so the log shows who
-            did what. Use an account with only the role the agent needs: an
-            Author can write and publish their own posts, an Editor can manage
-            everything.
-          </li>
-          <li>
-            Encode your email and that password for Basic auth:
-            <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 text-xs">
-              {`printf '%s' '${viewer.email}:abcd efgh ijkl mnop qrst uvwx' | base64`}
-            </pre>
-          </li>
-          <li>
-            Claude Code:
-            <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 text-xs">
-              {`claude mcp add --transport http nordpress ${endpoint} \\\n  --header "Authorization: Basic <encoded value>"`}
-            </pre>
-          </li>
-          <li>
-            Other MCP clients: point a Streamable HTTP connection at{" "}
-            <code>{endpoint}</code> with the same <code>Authorization</code>{" "}
-            header.
-          </li>
-        </ol>
+        <p>
+          Give your MCP client this address: <code>{endpoint}</code>. In Claude,
+          add it as a custom connector. The client registers itself, you sign in
+          here and choose <strong>Allow</strong>, and it acts with your role.
+          Connected apps are listed under{" "}
+          <Link href="/admin/profile" className="text-primary underline">
+            Profile
+          </Link>
+          , where you can disconnect them.
+        </p>
+        <p className="text-muted-foreground">
+          For scripts and clients without OAuth, create an application password
+          under Profile and send it as Basic auth:
+        </p>
+        <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+          {`claude mcp add --transport http nordpress ${endpoint} \\\n  --header "Authorization: Basic $(printf '%s' '${viewer.email}:<app password>' | base64)"`}
+        </pre>
         <p className="text-muted-foreground">
           Revoking the application password disconnects the agent immediately.
         </p>

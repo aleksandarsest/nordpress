@@ -1,8 +1,10 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateAppPassword } from "@/lib/app-passwords";
 import { createMcpServer } from "@/lib/mcp/server";
+import { verifyAccessToken } from "@/lib/oauth";
 import { getSettings } from "@/lib/options";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { siteUrl } from "@/lib/site-url";
 
 // The MCP endpoint: AI agents (Claude Code, Claude Desktop, ...) connect here
 // with an application password. Stateless: each request gets a fresh server.
@@ -24,15 +26,18 @@ async function handle(request: Request) {
   const perIp = await rateLimit(`mcp-ip:${ip}`, 600, 60_000);
   if (!perIp.ok) return error(429, "Too many requests.");
 
-  const auth = await authenticateAppPassword(
-    request.headers.get("authorization"),
-    known,
-  );
+  const header = request.headers.get("authorization");
+  const auth = header?.startsWith("Bearer ")
+    ? await verifyAccessToken(header.slice(7))
+    : await authenticateAppPassword(header, known);
   if (!auth)
     return error(
       401,
-      "Sign in with HTTP Basic auth: your email and an application password from your profile.",
-      { "WWW-Authenticate": 'Basic realm="Nordpress MCP", charset="UTF-8"' },
+      "Connect with OAuth, or use HTTP Basic auth with your email and an application password.",
+      {
+        // Tells MCP clients where to start the OAuth flow
+        "WWW-Authenticate": `Bearer resource_metadata="${siteUrl("/.well-known/oauth-protected-resource/mcp")}"`,
+      },
     );
 
   const perUser = await rateLimit(`mcp-user:${auth.viewer.id}`, 120, 60_000);

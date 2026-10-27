@@ -295,7 +295,9 @@ Checks run when an administrator opens the dashboard (at most daily) or with **R
 
 Nordpress is an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so Claude Code, Claude Desktop and other agents can manage the site: "draft a post about our launch and tag it", "what's waiting in moderation?", "summarize this week's contact form responses".
 
-**Connect:** create an application password under **Profile** (name it after the agent), Base64-encode `email:password`, then:
+**Connect:** give your MCP client the address `https://your-site/mcp`. In Claude, add it as a custom connector; Claude Code and other clients take the same URL. The client registers itself, you sign in to Nordpress and choose **Allow**, and it's connected. This is OAuth 2.1 with PKCE, following the MCP authorization spec. Connected apps are listed under **Profile**, where you can disconnect them.
+
+Scripts and clients without OAuth can use an application password instead:
 
 ```bash
 claude mcp add --transport http nordpress https://your-site/mcp \
