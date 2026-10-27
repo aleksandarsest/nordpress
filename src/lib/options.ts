@@ -73,6 +73,8 @@ export type SiteSettings = {
   menuLocations: Record<string, number>;
   /** Slug of the active theme (see src/themes). */
   theme: string;
+  /** Set once the setup wizard has created a starter site, or was dismissed. */
+  setupCompleted: boolean;
 };
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -112,6 +114,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   activePlugins: [],
   menuLocations: {},
   theme: "classic",
+  setupCompleted: false,
 };
 
 export const SETTINGS_TAG = "options";
@@ -136,8 +139,11 @@ export async function saveSettings(values: Partial<SiteSettings>) {
         entries.map(([k]) => k),
       ),
     );
-    await tx
-      .insert(options)
-      .values(entries.map(([name, value]) => ({ name, value })));
+    // A null setting is stored as no row, so its default (null) applies
+    const kept = entries.filter(([, value]) => value !== null);
+    if (kept.length)
+      await tx
+        .insert(options)
+        .values(kept.map(([name, value]) => ({ name, value })));
   });
 }

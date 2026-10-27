@@ -178,6 +178,19 @@ Hooks run in priority order (lower first, default 10). An error in one plugin is
 
 Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
 
+## Site setup
+
+After installing, Nordpress opens **Set up your site** (also on the dashboard until it's done). Describe the site in your own words, and Claude drafts a complete starter site:
+
+- name, tagline, and the brand voice for the AI features;
+- a home page, about, services and contact pages with real copy, plus first posts where they fit;
+- a contact form embedded on the Contact page;
+- a main menu, a theme and an accent color.
+
+Everything is shown for review first: edit the identity, drop pages, switch the theme, then **Create my site**.
+
+Claude is told never to invent facts such as prices, addresses, opening hours, names, statistics or testimonials. Where the site needs those, it leaves [placeholders] for you to fill in. Without an API key, the same wizard offers templates for a business, blog, portfolio or organization. Setup only adds content; if any step fails, everything it created is removed again.
+
 ## Admin assistant
 
 **Assistant** in the admin is Claude working on the site for you: "what's waiting for me?", "draft a post announcing the new contact form", "find posts with no excerpt and suggest one for each", "summarize this week's form responses".

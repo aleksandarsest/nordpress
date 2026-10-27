@@ -114,7 +114,7 @@ export async function install(
   updateTag(SETTINGS_TAG);
   updateTag(POSTS_TAG);
   updateTag(TERMS_TAG);
-  redirect("/admin?installed=1");
+  redirect("/admin/setup?installed=1");
 }
 
 const RESET_SENT =

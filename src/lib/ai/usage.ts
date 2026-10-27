@@ -20,6 +20,7 @@ export const FEATURE_LABELS: Record<string, string> = {
   chat: "Site chat",
   form_draft: "Form drafting",
   assistant: "Admin assistant",
+  site_setup: "Site setup",
   form_triage: "Form spam triage",
   embed_index: "Search indexing (Voyage)",
   embed_query: "Search queries (Voyage)",

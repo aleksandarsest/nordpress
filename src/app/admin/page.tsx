@@ -2,11 +2,13 @@ import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hasCap } from "@/lib/capabilities";
 import { countPendingComments } from "@/lib/comments";
+import { getSettings } from "@/lib/options";
 import { dashboardStats, recentDrafts } from "@/lib/posts";
 import { requireViewer } from "@/lib/session";
 import { first } from "./_components/screen";
@@ -21,6 +23,8 @@ export default async function DashboardPage({
   const [stats, drafts] = canWrite
     ? await Promise.all([dashboardStats(), recentDrafts(viewer.id)])
     : [null, []];
+  const setupCard =
+    hasCap(viewer, "manage_options") && !(await getSettings()).setupCompleted;
   const pendingComments = hasCap(viewer, "moderate_comments")
     ? await countPendingComments()
     : null;
@@ -28,6 +32,25 @@ export default async function DashboardPage({
   return (
     <div className="grid gap-6">
       <h1 className="font-semibold text-2xl tracking-tight">Dashboard</h1>
+
+      {setupCard && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Set up your site in a minute</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm">
+            <p className="text-muted-foreground">
+              Describe your site and get pages with real copy, a menu, a contact
+              form and a theme, ready to review.
+            </p>
+            <div>
+              <Link href="/admin/setup" className={buttonVariants()}>
+                Start setup
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {first(params.installed) && (
         <Alert>
