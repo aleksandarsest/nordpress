@@ -1,0 +1,573 @@
+import "server-only";
+import { randomBytes } from "node:crypto";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+import { and, eq, sql } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
+import { db } from "@/db";
+import {
+  type CommentStatus,
+  comments,
+  media,
+  posts,
+  terms,
+  user,
+} from "@/db/schema";
+import { embeddingsConfigured, rebuildIndex } from "@/lib/ai/embeddings";
+import { createUserWithPassword } from "@/lib/auth";
+import { COMMENTS_TAG } from "@/lib/comments";
+import { htmlToDoc } from "@/lib/content";
+import {
+  ALLOWED_TYPES,
+  MAX_UPLOAD_BYTES,
+  mediaUrl,
+  storeUpload,
+  updateMedia,
+} from "@/lib/media";
+import { SETTINGS_TAG } from "@/lib/options";
+import { POSTS_TAG, type SaveIntent, savePost } from "@/lib/posts";
+import type { Viewer } from "@/lib/session";
+import { createTerm, TERMS_TAG } from "@/lib/terms";
+import {
+  autop,
+  cleanContent,
+  parentsFirst,
+  parseWxr,
+  type WxrItem,
+} from "./wxr";
+
+export type AuthorMode = "me" | "match" | "create";
+
+export type ImportOptions = {
+  authorMode: AuthorMode;
+  downloadMedia: boolean;
+  allowPrivateHosts: boolean;
+};
+
+export type ImportCounts = {
+  posts: number;
+  pages: number;
+  categories: number;
+  tags: number;
+  comments: number;
+  media: number;
+  users: number;
+  skipped: number;
+  failed: number;
+};
+
+export type ImportJob = {
+  status: "running" | "done" | "failed";
+  phase: string;
+  progress: { done: number; total: number };
+  counts: ImportCounts;
+  log: string[];
+  startedAt: string;
+  finishedAt?: string;
+  source?: string;
+};
+
+const MAX_LOG = 200;
+let current: ImportJob | null = null;
+
+export function currentJob() {
+  return current;
+}
+
+const IMPORTABLE_TYPES = new Set(["post", "page"]);
+const STATUS_MAP: Record<string, SaveIntent> = {
+  publish: "publish",
+  future: "publish",
+  draft: "draft",
+  pending: "pending",
+  private: "private",
+};
+const COMMENT_STATUS: Record<string, CommentStatus> = {
+  "1": "approved",
+  "0": "pending",
+  spam: "spam",
+  trash: "trash",
+};
+
+function emptyCounts(): ImportCounts {
+  return {
+    posts: 0,
+    pages: 0,
+    categories: 0,
+    tags: 0,
+    comments: 0,
+    media: 0,
+    users: 0,
+    skipped: 0,
+    failed: 0,
+  };
+}
+
+export function startImport(
+  xml: string,
+  actor: Viewer,
+  options: ImportOptions,
+) {
+  if (current?.status === "running")
+    throw new Error("An import is already running.");
+  const job: ImportJob = {
+    status: "running",
+    phase: "Reading the export file",
+    progress: { done: 0, total: 0 },
+    counts: emptyCounts(),
+    log: [],
+    startedAt: new Date().toISOString(),
+  };
+  current = job;
+  return {
+    job,
+    run: () =>
+      runImport(xml, actor, options, job).catch((error) => {
+        job.status = "failed";
+        job.finishedAt = new Date().toISOString();
+        note(job, `Import stopped: ${(error as Error).message}`);
+        console.error("[plugin:wordpress-importer]", error);
+      }),
+  };
+}
+
+function note(job: ImportJob, message: string) {
+  job.log.push(message);
+  if (job.log.length > MAX_LOG) job.log.splice(0, job.log.length - MAX_LOG);
+}
+
+async function runImport(
+  xml: string,
+  actor: Viewer,
+  options: ImportOptions,
+  job: ImportJob,
+) {
+  const wxr = parseWxr(xml);
+  job.source = wxr.site.title || wxr.site.link;
+  const items = wxr.items.filter((i) => IMPORTABLE_TYPES.has(i.type));
+  const attachments = options.downloadMedia
+    ? wxr.items.filter((i) => i.type === "attachment" && i.attachmentUrl)
+    : [];
+  const unsupported = wxr.items.filter(
+    (i) => !IMPORTABLE_TYPES.has(i.type) && i.type !== "attachment",
+  );
+  if (unsupported.length) {
+    const kinds = [...new Set(unsupported.map((i) => i.type))].join(", ");
+    note(
+      job,
+      `Skipping ${unsupported.length} items of unsupported types (${kinds}).`,
+    );
+  }
+  job.progress = { done: 0, total: items.length + attachments.length };
+
+  // 1. Authors
+  job.phase = "Matching authors";
+  const authorIds = await mapAuthors(
+    wxr.authors,
+    actor,
+    options.authorMode,
+    job,
+  );
+  const wpUserIds = new Map(
+    wxr.authors.map((a) => [a.id, authorIds.get(a.login) ?? actor.id]),
+  );
+
+  // 2. Categories and tags
+  job.phase = "Creating categories and tags";
+  const categoryIds = await importTerms(
+    "category",
+    parentsFirst(wxr.categories),
+    job,
+  );
+  const tagIds = await importTerms("post_tag", wxr.tags, job);
+
+  // 3. Media
+  const mediaIds = new Map<number, number>();
+  const urlMap = new Map<string, string>();
+  if (attachments.length) {
+    job.phase = "Downloading media";
+    for (const item of attachments) {
+      try {
+        const saved = await importAttachment(
+          item,
+          authorIds.get(item.creator) ?? actor.id,
+          options,
+          job,
+        );
+        if (saved) {
+          mediaIds.set(item.id, saved.id);
+          urlMap.set(stripSize(item.attachmentUrl), saved.url);
+        }
+      } catch (error) {
+        job.counts.failed++;
+        note(
+          job,
+          `Couldn't download ${item.attachmentUrl}: ${(error as Error).message}`,
+        );
+      }
+      job.progress.done++;
+    }
+  }
+
+  // 4. Posts and pages (parents first, so hierarchy can be linked)
+  job.phase = "Importing posts and pages";
+  const postIds = new Map<number, number>();
+  for (const item of parentsFirstItems(items)) {
+    try {
+      const id = await importItem(item, {
+        actor,
+        authorId: authorIds.get(item.creator) ?? actor.id,
+        categoryIds,
+        tagIds,
+        mediaIds,
+        postIds,
+        urlMap,
+        baseUrl: wxr.site.baseSiteUrl,
+        job,
+      });
+      if (id) {
+        postIds.set(item.id, id);
+        await importComments(item, id, wpUserIds, job);
+      }
+    } catch (error) {
+      job.counts.failed++;
+      note(
+        job,
+        `Couldn't import “${item.title || item.slug}”: ${(error as Error).message}`,
+      );
+    }
+    job.progress.done++;
+  }
+
+  // 5. Caches and search index
+  job.phase = "Finishing up";
+  for (const tag of [POSTS_TAG, TERMS_TAG, COMMENTS_TAG, SETTINGS_TAG])
+    revalidateTag(tag, { expire: 0 });
+  if (embeddingsConfigured()) {
+    note(job, "Updating the search index…");
+    await rebuildIndex();
+  }
+
+  job.phase = "Done";
+  job.status = "done";
+  job.finishedAt = new Date().toISOString();
+  note(job, "Import finished.");
+}
+
+// ---------------------------------------------------------------------------
+
+async function mapAuthors(
+  authors: { login: string; email: string; displayName: string }[],
+  actor: Viewer,
+  mode: AuthorMode,
+  job: ImportJob,
+) {
+  const map = new Map<string, string>();
+  for (const author of authors) {
+    if (mode === "me" || !author.email) {
+      map.set(author.login, actor.id);
+      continue;
+    }
+    const [existing] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.email, author.email));
+    if (existing) {
+      map.set(author.login, existing.id);
+    } else if (mode === "create") {
+      // A random password the person never sees; an admin sets a real one
+      const created = await createUserWithPassword({
+        name: author.displayName,
+        email: author.email,
+        password: randomBytes(24).toString("base64url"),
+        role: "author",
+      });
+      map.set(author.login, created.id);
+      job.counts.users++;
+      note(
+        job,
+        `Created author account ${author.displayName} <${author.email}>. Set a password under Users before they log in.`,
+      );
+    } else {
+      map.set(author.login, actor.id);
+    }
+  }
+  return map;
+}
+
+async function importTerms(
+  taxonomy: "category" | "post_tag",
+  list: { slug: string; name: string; description: string; parent: string }[],
+  job: ImportJob,
+) {
+  const ids = new Map<string, number>();
+  for (const term of list) {
+    if (!term.slug || !term.name) continue;
+    const [existing] = await db
+      .select({ id: terms.id })
+      .from(terms)
+      .where(and(eq(terms.taxonomy, taxonomy), eq(terms.slug, term.slug)));
+    if (existing) {
+      ids.set(term.slug, existing.id);
+      continue;
+    }
+    const created = await createTerm(taxonomy, {
+      name: term.name,
+      slug: term.slug,
+      description: term.description,
+      parentId: term.parent ? (ids.get(term.parent) ?? null) : null,
+    });
+    ids.set(term.slug, created.id);
+    if (taxonomy === "category") job.counts.categories++;
+    else job.counts.tags++;
+  }
+  return ids;
+}
+
+// "photo-300x200.jpg" and "photo.jpg" are the same upload in WordPress
+function stripSize(url: string) {
+  return url
+    .replace(/-\d+x\d+(\.[a-z0-9]+)$/i, "$1")
+    .replace(/-scaled(\.[a-z0-9]+)$/i, "$1");
+}
+
+function rewriteMediaUrls(html: string, urlMap: Map<string, string>) {
+  if (urlMap.size === 0) return html;
+  return html.replace(
+    /(src|href)=(["'])(https?:\/\/[^"']+)\2/g,
+    (match, attr, quote, url: string) => {
+      const mapped = urlMap.get(stripSize(url.split("?")[0]));
+      return mapped ? `${attr}=${quote}${mapped}${quote}` : match;
+    },
+  );
+}
+
+const PRIVATE_V4 = [
+  /^10\./,
+  /^127\./,
+  /^169\.254\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^0\./,
+  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
+];
+
+function isPrivateAddress(address: string) {
+  if (isIP(address) === 6) {
+    const a = address.toLowerCase();
+    return (
+      a === "::1" ||
+      a === "::" ||
+      a.startsWith("fc") ||
+      a.startsWith("fd") ||
+      a.startsWith("fe80") ||
+      a.startsWith("::ffff:127.") ||
+      a.startsWith("::ffff:10.") ||
+      a.startsWith("::ffff:192.168.")
+    );
+  }
+  return PRIVATE_V4.some((r) => r.test(address));
+}
+
+// Downloads a file named in the export, refusing internal network addresses
+// (unless explicitly allowed) so an export file can't probe the server's network.
+async function download(url: string, allowPrivate: boolean) {
+  const parsed = new URL(url);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
+    throw new Error("only http(s) URLs are allowed");
+  if (!allowPrivate) {
+    const addresses = await lookup(parsed.hostname, { all: true });
+    if (addresses.some((a) => isPrivateAddress(a.address)))
+      throw new Error("refusing a private network address");
+  }
+  const res = await fetch(parsed, {
+    redirect: "error",
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const type = (res.headers.get("content-type") ?? "").split(";")[0].trim();
+  const length = Number(res.headers.get("content-length") ?? 0);
+  if (length > MAX_UPLOAD_BYTES) throw new Error("file is larger than 20 MB");
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.byteLength > MAX_UPLOAD_BYTES)
+    throw new Error("file is larger than 20 MB");
+  return { bytes, type };
+}
+
+function guessType(url: string, served: string) {
+  if (ALLOWED_TYPES[served]) return served;
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
+  const byExt: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    avif: "image/avif",
+    pdf: "application/pdf",
+    mp3: "audio/mpeg",
+    mp4: "video/mp4",
+  };
+  return (ext && byExt[ext]) || served;
+}
+
+async function importAttachment(
+  item: WxrItem,
+  uploaderId: string,
+  options: ImportOptions,
+  job: ImportJob,
+) {
+  const [existing] = await db
+    .select({ id: media.id, path: media.path })
+    .from(media)
+    .where(sql`${media.meta}->>'wpUrl' = ${item.attachmentUrl}`);
+  if (existing) {
+    job.counts.skipped++;
+    return { id: existing.id, url: mediaUrl(existing.path) };
+  }
+
+  const { bytes, type } = await download(
+    item.attachmentUrl,
+    options.allowPrivateHosts,
+  );
+  const name = decodeURIComponent(
+    item.attachmentUrl.split("?")[0].split("/").pop() || "file",
+  );
+  const row = await storeUpload(
+    new File([bytes], name, { type: guessType(item.attachmentUrl, type) }),
+    uploaderId,
+  );
+  await updateMedia(row.id, {
+    title: item.title || row.title,
+    alt: item.meta._wp_attachment_image_alt ?? "",
+    caption: item.excerpt,
+  });
+  await db
+    .update(media)
+    .set({ meta: { wpId: item.id, wpUrl: item.attachmentUrl } })
+    .where(eq(media.id, row.id));
+  job.counts.media++;
+  return { id: row.id, url: mediaUrl(row.path) };
+}
+
+function parentsFirstItems(items: WxrItem[]) {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const out: WxrItem[] = [];
+  const seen = new Set<number>();
+  const visit = (item: WxrItem, path: Set<number>) => {
+    if (seen.has(item.id) || path.has(item.id)) return;
+    path.add(item.id);
+    const parent = byId.get(item.parentId);
+    if (parent) visit(parent, path);
+    seen.add(item.id);
+    out.push(item);
+  };
+  for (const item of items) visit(item, new Set());
+  return out;
+}
+
+type ItemContext = {
+  actor: Viewer;
+  authorId: string;
+  categoryIds: Map<string, number>;
+  tagIds: Map<string, number>;
+  mediaIds: Map<number, number>;
+  postIds: Map<number, number>;
+  urlMap: Map<string, string>;
+  baseUrl: string;
+  job: ImportJob;
+};
+
+async function importItem(item: WxrItem, ctx: ItemContext) {
+  const intent = STATUS_MAP[item.status];
+  if (!intent) {
+    ctx.job.counts.skipped++;
+    return null;
+  }
+  const guid = item.guid || `${ctx.baseUrl}/?p=${item.id}`;
+  const [existing] = await db
+    .select({ id: posts.id })
+    .from(posts)
+    .where(sql`${posts.meta}->>'wpGuid' = ${guid}`);
+  if (existing) {
+    ctx.job.counts.skipped++;
+    return existing.id;
+  }
+
+  const protectedPost = !!item.password && intent === "publish";
+  if (protectedPost) {
+    note(
+      ctx.job,
+      `“${item.title}” was password-protected in WordPress; imported as private.`,
+    );
+  }
+
+  const html = autop(cleanContent(rewriteMediaUrls(item.content, ctx.urlMap)));
+  const thumbnail = Number(item.meta._thumbnail_id) || 0;
+  const saved = await savePost(ctx.actor, {
+    type: item.type as "post" | "page",
+    intent: protectedPost ? "private" : intent,
+    title: item.title,
+    slug: item.slug,
+    content: htmlToDoc(html),
+    excerpt: item.excerpt,
+    publishedAt: item.dateGmt,
+    parentId: item.parentId ? (ctx.postIds.get(item.parentId) ?? null) : null,
+    menuOrder: item.menuOrder,
+    featuredMediaId: thumbnail ? (ctx.mediaIds.get(thumbnail) ?? null) : null,
+    commentStatus: item.commentStatus,
+    sticky: item.sticky,
+    categoryIds: item.categories.flatMap((s) => ctx.categoryIds.get(s) ?? []),
+    tagIds: item.tags.flatMap((s) => ctx.tagIds.get(s) ?? []),
+    authorId: ctx.authorId,
+    source: "import",
+  });
+  await db
+    .update(posts)
+    .set({
+      meta: { ...saved.meta, wpId: item.id, wpGuid: guid, wpLink: item.link },
+    })
+    .where(eq(posts.id, saved.id));
+  if (item.type === "page") ctx.job.counts.pages++;
+  else ctx.job.counts.posts++;
+  return saved.id;
+}
+
+async function importComments(
+  item: WxrItem,
+  postId: number,
+  wpUserIds: Map<number, string>,
+  job: ImportJob,
+) {
+  const list = item.comments
+    .filter(
+      (c) =>
+        (c.type === "" || c.type === "comment") && COMMENT_STATUS[c.approved],
+    )
+    .sort((a, b) => a.id - b.id);
+  if (list.length === 0) return;
+  // Comments of an already imported post were imported with it
+  const already = await db.$count(comments, eq(comments.postId, postId));
+  if (already) return;
+
+  const ids = new Map<number, number>();
+  for (const c of list) {
+    const [row] = await db
+      .insert(comments)
+      .values({
+        postId,
+        parentId: c.parentId ? (ids.get(c.parentId) ?? null) : null,
+        userId: c.userId ? (wpUserIds.get(c.userId) ?? null) : null,
+        authorName: c.authorName || "Anonymous",
+        authorEmail: c.authorEmail,
+        authorUrl: /^https?:\/\//i.test(c.authorUrl) ? c.authorUrl : "",
+        content: c.content,
+        status: COMMENT_STATUS[c.approved],
+        ipAddress: c.authorIp || null,
+        ...(c.dateGmt ? { createdAt: c.dateGmt, updatedAt: c.dateGmt } : {}),
+      })
+      .returning({ id: comments.id });
+    ids.set(c.id, row.id);
+    job.counts.comments++;
+  }
+}
