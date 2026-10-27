@@ -43,7 +43,13 @@ async function ThemeLayout({ children }: { children: React.ReactNode }) {
   );
   const { Layout } = theme.components;
   return (
-    <Layout site={site} menus={menus} pages={pages} options={options}>
+    <Layout
+      site={site}
+      menus={menus}
+      // Fallback menus list the site's own pages, not their translations
+      pages={pages.filter((p) => !p.lang)}
+      options={options}
+    >
       {children}
     </Layout>
   );

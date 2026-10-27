@@ -1,3 +1,4 @@
+import { translationLang } from "./i18n";
 import type { PermalinkStructure } from "./options";
 
 export type LinkablePost = {
@@ -5,6 +6,8 @@ export type LinkablePost = {
   type: string;
   slug: string;
   publishedAt: Date | null;
+  /** Translations carry their language here and live under /<lang>/. */
+  meta?: unknown;
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -12,6 +15,16 @@ const pad = (n: number) => String(n).padStart(2, "0");
 // `pagePath` is the slash-joined slug chain for hierarchical pages,
 // e.g. "about/team".
 export function postPath(
+  post: LinkablePost,
+  structure: PermalinkStructure,
+  pagePath?: string,
+): string {
+  const lang = structure === "plain" ? null : translationLang(post.meta);
+  const path = basePath(post, structure, pagePath);
+  return lang ? `/${lang}${path}` : path;
+}
+
+function basePath(
   post: LinkablePost,
   structure: PermalinkStructure,
   pagePath?: string,
@@ -36,6 +49,7 @@ export function postPath(
 
 export type Route =
   | { kind: "home"; page: number }
+  | { kind: "lang-home"; lang: string; page: number }
   | { kind: "single"; id: number }
   | { kind: "page-by-id"; id: number }
   | { kind: "slug"; slugs: string[] }
@@ -59,8 +73,19 @@ const isInt = (s: string | undefined) => !!s && /^\d+$/.test(s);
 export function resolveRoute(
   segments: string[],
   query: { p?: string; page_id?: string; s?: string },
+  /** Codes of the site's additional languages, used as URL prefixes. */
+  languages: string[] = [],
 ): Route {
   let parts = segments.filter(Boolean).map(decodeURIComponent);
+  // "/de/..." is the same route in German; canonical checks confirm the
+  // content really is in that language
+  if (parts.length && languages.includes(parts[0])) {
+    const lang = parts[0];
+    const rest = resolveRoute(parts.slice(1), {}, []);
+    if (rest.kind === "home")
+      return { kind: "lang-home", lang, page: rest.page };
+    return rest;
+  }
 
   let page = 1;
   const pageAt = parts.length - 2;

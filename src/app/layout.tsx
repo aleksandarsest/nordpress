@@ -28,10 +28,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Cached, so the shell stays static; translated posts set their own lang
+  const { defaultLanguage } = await getSettings();
   return (
     <html
-      lang="en"
+      lang={defaultLanguage}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">

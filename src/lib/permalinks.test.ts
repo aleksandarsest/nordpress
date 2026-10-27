@@ -70,4 +70,42 @@ describe("resolveRoute", () => {
       slugs: ["about", "team"],
     });
   });
+
+  it("puts translations under their language", () => {
+    const de = {
+      id: 7,
+      type: "post",
+      slug: "hallo-welt",
+      publishedAt: new Date("2026-03-04T00:00:00Z"),
+      meta: { lang: "de", translationOf: 1 },
+    };
+    expect(postPath(de, "postname")).toBe("/de/hallo-welt");
+    expect(postPath(de, "dated")).toBe("/de/2026/03/hallo-welt");
+    expect(postPath(de, "plain")).toBe("/?p=7");
+    expect(postPath({ ...de, type: "page" }, "postname", "ueber-uns")).toBe(
+      "/de/ueber-uns",
+    );
+  });
+
+  it("strips a language prefix when resolving", () => {
+    expect(resolveRoute(["de", "hallo-welt"], {}, ["de"])).toEqual({
+      kind: "slug",
+      slugs: ["hallo-welt"],
+    });
+    expect(resolveRoute(["de"], {}, ["de"])).toEqual({
+      kind: "lang-home",
+      lang: "de",
+      page: 1,
+    });
+    expect(resolveRoute(["de", "page", "2"], {}, ["de"])).toEqual({
+      kind: "lang-home",
+      lang: "de",
+      page: 2,
+    });
+    // Not a site language: just a slug
+    expect(resolveRoute(["fr"], {}, ["de"])).toEqual({
+      kind: "slug",
+      slugs: ["fr"],
+    });
+  });
 });

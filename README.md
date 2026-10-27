@@ -260,6 +260,14 @@ Tick **Members only** on any post or page to keep it for members. Visitors see t
 - **Grant or end** memberships by hand, for example for sponsors or staff.
 - **No leaks:** members-only content stays out of the RSS feed, the public REST API, the Markdown copies and `llms-full.txt`, search snippets beyond the teaser, and the semantic index, so the site chat can't quote it. People with editing roles always see everything.
 
+## Translations
+
+List the languages you publish in under **Settings → General** (for example `de, fr`). Each post and page then gets a **Translations** card in the editor:
+
+- **Translate:** Claude drafts the translation in your brand voice, keeping headings, lists and links. Without an API key, it creates a copy to translate by hand. Either way it's a draft until a person publishes it.
+- **Addresses:** translations live under their language (`/de/besserer-kaffee`), and `/de` lists the posts in that language. The bare slug redirects to the prefixed address. Your own pages and home page stay as they are.
+- **For readers and search engines:** posts link to their translations ("Also in: Deutsch"), pages carry `hreflang` alternates and a `lang` attribute, and the sitemap lists every language.
+
 ## Insights
 
 **Insights** shows how people find the site and, increasingly important, how AI assistants read it and send readers to it, over the last 30 days:
@@ -392,6 +400,7 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | (none: agents use REST with no guardrails) | MCP server at `/mcp`, `agent_actions` log, `src/lib/mcp` |
 | Nav menus (`nav_menu_item` posts) | `menus` + `menu_items` |
 | SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/structured-data.ts`, `src/lib/ai-readable.ts` |
+| WPML / Polylang | Translations as linked posts (`meta.lang`, `meta.translationOf`), `src/lib/translations.ts` |
 | WooCommerce (core store) | `products` + `orders`, `src/lib/shop`, Stripe Checkout |
 | Form plugins (Contact Form 7, Gravity Forms) | `forms` + `form_submissions`, built in |
 | Themes and `theme_mods` | `src/themes/*`, options saved as `theme:<slug>` |

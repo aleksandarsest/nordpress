@@ -88,6 +88,31 @@ export default async function GeneralSettingsPage() {
             ))}
           </select>
         </div>
+        <div className="grid gap-4 sm:grid-cols-[160px_1fr]">
+          <div className="grid gap-2">
+            <Label htmlFor="default_language">Site language</Label>
+            <Input
+              id="default_language"
+              name="default_language"
+              defaultValue={s.defaultLanguage}
+              placeholder="en"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="languages">Translations</Label>
+            <Input
+              id="languages"
+              name="languages"
+              defaultValue={s.languages.join(", ")}
+              placeholder="de, fr, es"
+            />
+            <span className="text-muted-foreground text-xs">
+              Language codes for translated versions of posts and pages. Each
+              gets its own address, like /de/…, and a Translate button in the
+              editor.
+            </span>
+          </div>
+        </div>
         <fieldset className="grid gap-2 text-sm">
           <legend className="mb-2 font-medium">Date Format</legend>
           {DATE_FORMATS.map((f) => (

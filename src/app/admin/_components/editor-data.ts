@@ -7,6 +7,7 @@ import { getSettings } from "@/lib/options";
 import { postPath } from "@/lib/permalinks";
 import { getPageTree, listParentCandidates, type PostType } from "@/lib/posts";
 import { listTerms } from "@/lib/terms";
+import { getTranslations } from "@/lib/translations";
 import type { EditorOptions } from "./post-editor";
 
 export async function editorOptions(
@@ -19,15 +20,18 @@ export async function editorOptions(
     authorId: string | null;
     publishedAt: Date | null;
     parentId: number | null;
+    meta?: unknown;
   },
 ): Promise<EditorOptions> {
-  const [settings, categories, parents, tree, forms] = await Promise.all([
-    getSettings(),
-    post.type === "post" ? listTerms("category") : [],
-    post.type === "page" ? listParentCandidates("page", post.id) : [],
-    post.type === "page" ? getPageTree() : [],
-    listForms(),
-  ]);
+  const [settings, categories, parents, tree, forms, translations] =
+    await Promise.all([
+      getSettings(),
+      post.type === "post" ? listTerms("category") : [],
+      post.type === "page" ? listParentCandidates("page", post.id) : [],
+      post.type === "page" ? getPageTree() : [],
+      listForms(),
+      post.id ? getTranslations({ id: post.id, meta: post.meta ?? {} }) : [],
+    ]);
 
   const parentPath = post.parentId
     ? tree.find((p) => p.id === post.parentId)?.path
@@ -37,6 +41,8 @@ export async function editorOptions(
     type: post.type,
     slug: "",
     publishedAt: post.publishedAt,
+    // Translations live under their language, e.g. /de/
+    meta: post.meta,
   };
   // Everything before the slug, e.g. "/2026/10/" for dated permalinks
   const marker = "\u0000slug";
@@ -66,6 +72,9 @@ export async function editorOptions(
     forms: forms.map((f) => ({ id: f.id, title: f.title })),
     permalinkBase: base,
     ai: settings.aiEnabled && aiConfigured(),
+    defaultLanguage: settings.defaultLanguage,
+    languages: settings.languages,
+    translations,
     viewUrl:
       live && post.id
         ? postPath(

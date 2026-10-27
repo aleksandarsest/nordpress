@@ -76,6 +76,8 @@ export type PostSummary = Awaited<
 export type ListQuery = {
   page?: number;
   perPage: number;
+  /** A translation language; without it, only default-language posts. */
+  lang?: string;
   termId?: number;
   authorId?: string;
   search?: string;
@@ -89,7 +91,13 @@ export async function listPublished(query: ListQuery) {
   cacheLife("hours");
 
   const page = Math.max(1, query.page ?? 1);
-  const where: SQL[] = [eq(posts.type, "post"), isLive];
+  const where: SQL[] = [
+    eq(posts.type, "post"),
+    isLive,
+    query.lang
+      ? sql`${posts.meta}->>'lang' = ${query.lang}`
+      : sql`${posts.meta}->>'lang' is null`,
+  ];
   if (query.authorId) where.push(eq(posts.authorId, query.authorId));
   if (query.termId) {
     where.push(
@@ -230,6 +238,8 @@ export type PageNode = {
   parentId: number | null;
   menuOrder: number;
   path: string;
+  /** Set for translated pages. */
+  lang: string | null;
 };
 
 // Every published page with its full slug path, for menus and routing.
@@ -245,6 +255,7 @@ export async function getPageTree(): Promise<PageNode[]> {
       slug: posts.slug,
       parentId: posts.parentId,
       menuOrder: posts.menuOrder,
+      lang: sql<string | null>`${posts.meta}->>'lang'`,
     })
     .from(posts)
     .where(and(eq(posts.type, "page"), isLive))

@@ -15,6 +15,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     listTerms("post_tag"),
     listShopProducts(),
   ]);
+  const translated = settings.languages.length
+    ? await Promise.all(
+        settings.languages.map((lang) =>
+          listPublished({ perPage: 5000, lang }),
+        ),
+      )
+    : [];
   if (!settings.blogPublic) return [];
 
   return [
@@ -29,6 +36,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...[...categories, ...tags]
       .filter((t) => t.count > 0)
       .map((t) => ({ url: siteUrl(termPath(t.taxonomy, t.slug)) })),
+    ...translated.flatMap((list) =>
+      list.items.map((p) => ({
+        url: siteUrl(postPath(p, settings.permalinkStructure)),
+        lastModified: p.updatedAt,
+      })),
+    ),
     ...(shop.length ? [{ url: siteUrl("/shop") }] : []),
     ...shop.map((p) => ({
       url: siteUrl(`/shop/${p.slug}`),

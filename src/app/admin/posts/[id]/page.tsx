@@ -54,7 +54,9 @@ export default async function EditPostPage({
         </Alert>
       )}
       <PostEditor
-        options={await editorOptions(viewer, { ...post, type })}
+        options={
+          await editorOptions(viewer, { ...post, type, meta: post.meta })
+        }
         post={{
           id: post.id,
           type,

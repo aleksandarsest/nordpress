@@ -3,6 +3,7 @@ import { aiProvenance } from "@/lib/ai-provenance";
 import { pathsOf } from "@/lib/ai-readable";
 import { getPublicForm } from "@/lib/forms";
 import { splitFormEmbeds } from "@/lib/forms/embed";
+import { languageName, translationLang } from "@/lib/i18n";
 import { responsiveContent } from "@/lib/images";
 import { hasMemberAccess } from "@/lib/members";
 import { isMembersOnly, teaser } from "@/lib/members/access";
@@ -12,6 +13,7 @@ import { getViewer } from "@/lib/session";
 import { postJsonLd } from "@/lib/structured-data";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
 import type { SinglePost } from "@/lib/themes/types";
+import { getTranslations } from "@/lib/translations";
 import { Comments } from "./comments";
 import { SiteForm } from "./site-form";
 
@@ -46,31 +48,36 @@ export async function SingleView({
       {paths && (
         <JsonLd data={postJsonLd(post, site, paths.html, paths.markdown)} />
       )}
-      <Single
-        post={post}
-        site={site}
-        options={options}
-        isFront={isFront}
-        preview={preview}
-        body={
-          <>
-            {site.aiDisclosure && aiProvenance(post.meta) && (
-              <p className="not-prose mb-6 text-muted-foreground text-xs">
-                This {post.type === "page" ? "page" : "post"} was written with
-                AI assistance.
-              </p>
-            )}
-            {locked ? (
-              <MembersGate post={post} />
-            ) : (
-              <PostBody post={post} preview={preview} />
-            )}
-          </>
-        }
-        comments={
-          showComments ? <Comments post={post} settings={site} /> : null
-        }
-      />
+      <div lang={translationLang(post.meta) ?? undefined} className="contents">
+        <Single
+          post={post}
+          site={site}
+          options={options}
+          isFront={isFront}
+          preview={preview}
+          body={
+            <>
+              {!preview && site.languages.length > 0 && (
+                <LanguageSwitcher post={post} />
+              )}
+              {site.aiDisclosure && aiProvenance(post.meta) && (
+                <p className="not-prose mb-6 text-muted-foreground text-xs">
+                  This {post.type === "page" ? "page" : "post"} was written with
+                  AI assistance.
+                </p>
+              )}
+              {locked ? (
+                <MembersGate post={post} />
+              ) : (
+                <PostBody post={post} preview={preview} />
+              )}
+            </>
+          }
+          comments={
+            showComments ? <Comments post={post} settings={site} /> : null
+          }
+        />
+      </div>
     </>
   );
 }
@@ -159,5 +166,31 @@ async function MembersGate({ post }: { post: SinglePost }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// "Also in: Deutsch · Français" for posts with published translations.
+async function LanguageSwitcher({ post }: { post: SinglePost }) {
+  const others = (await getTranslations(post)).filter(
+    (t) => t.path && t.id !== post.id,
+  );
+  if (others.length === 0) return null;
+  return (
+    <nav aria-label="Languages" className="not-prose mb-6 text-sm">
+      <span className="text-muted-foreground">Also in: </span>
+      {others.map((t, i) => (
+        <span key={t.id}>
+          {i > 0 && " · "}
+          <a
+            href={t.path ?? "#"}
+            hrefLang={t.lang}
+            lang={t.lang}
+            className="underline"
+          >
+            {languageName(t.lang)}
+          </a>
+        </span>
+      ))}
+    </nav>
   );
 }

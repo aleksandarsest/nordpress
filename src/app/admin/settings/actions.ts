@@ -6,6 +6,7 @@ import { z } from "zod";
 import { embeddingsConfigured, rebuildIndex } from "@/lib/ai/embeddings";
 import { COMMENTS_TAG } from "@/lib/comments";
 import { email, type FormState, formError, optionalId, str } from "@/lib/form";
+import { normalizeLanguageCode } from "@/lib/i18n";
 import {
   AI_MODELS,
   type AiModel,
@@ -81,6 +82,19 @@ export async function saveGeneralAction(
         dateFormat: str(formData, "date_format"),
       }),
     );
+    const defaultLanguage =
+      normalizeLanguageCode(str(formData, "default_language")) ?? "en";
+    const languages: string[] = [];
+    for (const raw of str(formData, "languages")
+      .split(/[\s,]+/)
+      .filter(Boolean)) {
+      const code = normalizeLanguageCode(raw);
+      if (!code)
+        throw new Error(`“${raw}” isn't a language code (e.g. de, fr, pt-br).`);
+      if (code !== defaultLanguage && !languages.includes(code))
+        languages.push(code);
+    }
+    await save({ defaultLanguage, languages: languages.slice(0, 20) });
     return { message: "Settings saved." };
   } catch (error) {
     return formError(error);

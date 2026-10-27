@@ -13,11 +13,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { PostStatus } from "@/db/schema";
 import { editorExtensions } from "@/lib/editor-extensions";
+import type { TranslationLink } from "@/lib/translations";
 import { createPreviewAction, savePostAction } from "../posts/actions";
 import { AiAssistant } from "./ai-assistant";
 import { AiSuggestions, type SuggestionTargets } from "./ai-suggestions";
 import { MediaPicker } from "./media-picker";
 import { RichTextEditor } from "./rich-text-editor";
+import { TranslationsCard } from "./translations-card";
 
 export type EditorPost = {
   id?: number;
@@ -51,6 +53,11 @@ export type EditorOptions = {
   ai: boolean;
   /** Forms the editor can embed. */
   forms: { id: number; title: string }[];
+  /** The site's language and the ones content can be translated into. */
+  defaultLanguage: string;
+  languages: string[];
+  /** This post and its translations (empty for unsaved posts). */
+  translations: TranslationLink[];
 };
 
 const STATUS_TEXT: Record<PostStatus, string> = {
@@ -519,6 +526,10 @@ export function PostEditor({
             </div>
           </CardContent>
         </Card>
+
+        {post.id && options.languages.length > 0 && (
+          <TranslationsCard postId={post.id} options={options} />
+        )}
 
         <Card>
           <CardHeader>

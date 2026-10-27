@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/json-ld";
 import { hybridSearch } from "@/lib/ai/search";
 import { markdownPath } from "@/lib/ai-readable";
 import { makeExcerpt } from "@/lib/content";
+import { languageName } from "@/lib/i18n";
 import { getSettings, type SiteSettings } from "@/lib/options";
 import { postPath, type Route, resolveRoute, termPath } from "@/lib/permalinks";
 import {
@@ -16,6 +17,7 @@ import {
 import { websiteJsonLd } from "@/lib/structured-data";
 import { getTermBySlug } from "@/lib/terms";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
+import { getTranslations } from "@/lib/translations";
 import { type SinglePost, SingleView } from "../_components/single";
 
 type Props = PageProps<"/[[...path]]">;
@@ -28,12 +30,20 @@ async function routeFor({
   params,
   searchParams,
 }: Props): Promise<{ route: Route; requested: string }> {
-  const [{ path = [] }, query] = await Promise.all([params, searchParams]);
+  const [{ path = [] }, query, settings] = await Promise.all([
+    params,
+    searchParams,
+    getSettings(),
+  ]);
   const p = first(query.p);
   const pageId = first(query.page_id);
   const pathname = path.length ? `/${path.join("/")}` : "/";
   return {
-    route: resolveRoute(path, { p, page_id: pageId, s: first(query.s) }),
+    route: resolveRoute(
+      path,
+      { p, page_id: pageId, s: first(query.s) },
+      settings.languages,
+    ),
     // The part of the URL that identifies content, compared against canonical permalinks
     requested: p
       ? `${pathname}?p=${p}`
@@ -68,6 +78,8 @@ type View =
       description?: string;
       /** Address of the Markdown version, for <link rel="alternate">. */
       markdown?: string;
+      /** Published translations by language, for hreflang links. */
+      languages?: Record<string, string>;
     };
 
 async function resolveView(
@@ -84,6 +96,33 @@ async function resolveView(
     theme.components;
 
   switch (route.kind) {
+    case "lang-home": {
+      // The latest posts in one language, e.g. /de
+      const result = await list({ page: route.page, lang: route.lang });
+      if (route.page > result.pages) return null;
+      return {
+        kind: "render",
+        title: languageName(route.lang),
+        node: (
+          <>
+            {result.items.length === 0 ? (
+              <Empty message="Nothing has been published in this language yet." />
+            ) : (
+              <PostList
+                posts={result.items}
+                site={settings}
+                options={options}
+              />
+            )}
+            <Paging
+              page={result.page}
+              pages={result.pages}
+              base={`/${route.lang}`}
+            />
+          </>
+        ),
+      };
+    }
     case "home": {
       if (
         settings.showOnFront === "page" &&
@@ -324,6 +363,7 @@ async function canonical(
   return {
     kind: "render",
     markdown: markdownPath(expected),
+    languages: await hreflangs(post, settings),
     title: post.title,
     description: post.excerpt || makeExcerpt(post.contentText, 30),
     node: <SingleView post={post} />,
@@ -341,8 +381,19 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return {
     title: view.title,
     description: view.description,
-    ...(view.markdown && {
-      alternates: { types: { "text/markdown": view.markdown } },
+    ...((view.markdown || view.languages) && {
+      alternates: {
+        ...(view.markdown && { types: { "text/markdown": view.markdown } }),
+        ...(view.languages && { languages: view.languages }),
+      },
     }),
   };
+}
+
+// hreflang alternates when a post has published translations.
+async function hreflangs(post: Single, settings: SiteSettings) {
+  if (settings.languages.length === 0) return undefined;
+  const published = (await getTranslations(post)).filter((t) => t.path);
+  if (published.length < 2) return undefined;
+  return Object.fromEntries(published.map((t) => [t.lang, t.path as string]));
 }

@@ -19,6 +19,7 @@ import {
 import { createPreview } from "@/lib/previews";
 import { getViewer, PermissionError } from "@/lib/session";
 import { TERMS_TAG } from "@/lib/terms";
+import { createTranslation } from "@/lib/translations";
 
 async function actor() {
   const viewer = await getViewer();
@@ -209,5 +210,21 @@ export async function createPreviewAction(input: {
     return { token };
   } catch (error) {
     return { error: formError(error)?.error };
+  }
+}
+
+export async function createTranslationAction(
+  postId: number,
+  lang: string,
+): Promise<{ id?: number; error?: string }> {
+  try {
+    const viewer = await actor();
+    const result = await createTranslation(viewer, postId, lang);
+    invalidate();
+    return { id: result.id };
+  } catch (error) {
+    return {
+      error: formError(error)?.error ?? "Couldn't start the translation.",
+    };
   }
 }

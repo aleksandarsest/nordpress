@@ -66,6 +66,10 @@ export type SiteSettings = {
   inboxEnabled: boolean;
   /** ISO time the inbox checks last ran. */
   inboxLastRun: string;
+  /** The language of the site's own content, e.g. "en". */
+  defaultLanguage: string;
+  /** Other languages content can be translated into, e.g. ["de", "fr"]. */
+  languages: string[];
   /** The shop's currency (ISO 4217). */
   shopCurrency: string;
   /** How to pay when Stripe isn't set up, e.g. bank details. */
@@ -122,6 +126,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   aiDisclosure: false,
   inboxEnabled: true,
   inboxLastRun: "",
+  defaultLanguage: "en",
+  languages: [],
   shopCurrency: "EUR",
   shopPaymentInstructions: "",
   mcpEnabled: true,
