@@ -14,7 +14,7 @@
     "new:plugin": "node scripts/new-plugin.mjs",
     "new:theme": "node scripts/new-theme.mjs",
     "db:studio": "drizzle-kit studio",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
