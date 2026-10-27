@@ -66,6 +66,10 @@ export type SiteSettings = {
   inboxEnabled: boolean;
   /** ISO time the inbox checks last ran. */
   inboxLastRun: string;
+  /** The shop's currency (ISO 4217). */
+  shopCurrency: string;
+  /** How to pay when Stripe isn't set up, e.g. bank details. */
+  shopPaymentInstructions: string;
   /** Let AI agents connect over MCP at /mcp with an application password. */
   mcpEnabled: boolean;
   /**
@@ -118,6 +122,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   aiDisclosure: false,
   inboxEnabled: true,
   inboxLastRun: "",
+  shopCurrency: "EUR",
+  shopPaymentInstructions: "",
   mcpEnabled: true,
   agentsCanPublish: false,
   activePlugins: [],

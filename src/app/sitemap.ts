@@ -2,16 +2,18 @@ import type { MetadataRoute } from "next";
 import { getSettings } from "@/lib/options";
 import { postPath, termPath } from "@/lib/permalinks";
 import { getPageTree, listPublished } from "@/lib/posts";
+import { listShopProducts } from "@/lib/shop";
 import { siteUrl } from "@/lib/site-url";
 import { listTerms } from "@/lib/terms";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [settings, pages, posts, categories, tags] = await Promise.all([
+  const [settings, pages, posts, categories, tags, shop] = await Promise.all([
     getSettings(),
     getPageTree(),
     listPublished({ perPage: 5000 }),
     listTerms("category"),
     listTerms("post_tag"),
+    listShopProducts(),
   ]);
   if (!settings.blogPublic) return [];
 
@@ -27,5 +29,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...[...categories, ...tags]
       .filter((t) => t.count > 0)
       .map((t) => ({ url: siteUrl(termPath(t.taxonomy, t.slug)) })),
+    ...(shop.length ? [{ url: siteUrl("/shop") }] : []),
+    ...shop.map((p) => ({
+      url: siteUrl(`/shop/${p.slug}`),
+      lastModified: p.updatedAt,
+    })),
   ];
 }

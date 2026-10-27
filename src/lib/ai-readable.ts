@@ -1,11 +1,14 @@
 import "server-only";
 import { aiProvenance, describeAiSources } from "./ai-provenance";
+import { htmlToDoc } from "./content";
 import { formatInZone } from "./dates";
-import { docToMarkdown } from "./markdown";
+import { docToMarkdown, markdownToHtml } from "./markdown";
 import type { SiteSettings } from "./options";
 import { authorPath, postPath, resolveRoute, termPath } from "./permalinks";
 import { applyFilters } from "./plugins";
 import { getPageTree, getPublished, listPublished } from "./posts";
+import { listShopProducts, type ShopProduct } from "./shop";
+import { formatMoney } from "./shop/money";
 import { siteUrl } from "./site-url";
 import type { SinglePost } from "./themes/types";
 
@@ -164,14 +167,43 @@ export async function postMarkdown(
   return `${await applyFilters("post.markdown", markdown, { post })}\n`;
 }
 
+export async function productMarkdown(
+  product: ShopProduct,
+  settings: SiteSettings,
+) {
+  const facts = [
+    `URL: ${siteUrl(`/shop/${product.slug}`)}`,
+    `Price: ${formatMoney(product.priceCents, settings.shopCurrency)}`,
+    `Availability: ${product.stock === 0 ? "sold out" : product.stock === null ? "in stock" : `${product.stock} in stock`}`,
+    product.sku && `SKU: ${product.sku}`,
+    product.shippable
+      ? "Shipped to the buyer"
+      : "Delivered digitally or in person",
+  ].filter(Boolean);
+  return `${[
+    `# ${product.name}`,
+    product.summary && `> ${product.summary}`,
+    facts.map((f) => `- ${f}`).join("\n"),
+    // Through the editor schema, like every other description we serve
+    docToMarkdown(
+      htmlToDoc(markdownToHtml(product.description)),
+      markdownOptions,
+    ),
+    `To buy: add it to the cart at ${siteUrl(`/shop/${product.slug}`)} and check out at ${siteUrl("/shop/cart")}.`,
+  ]
+    .filter(Boolean)
+    .join("\n\n")}\n`;
+}
+
 const LLMS_POSTS = 50;
 const FULL_POSTS = 100;
 
 // https://llmstxt.org: a Markdown index of the site for language models.
 export async function llmsTxt(settings: SiteSettings) {
-  const [pages, posts] = await Promise.all([
+  const [pages, posts, shop] = await Promise.all([
     getPageTree(),
     listPublished({ perPage: LLMS_POSTS }),
+    listShopProducts(),
   ]);
   const link = (title: string, path: string, note?: string) =>
     `- [${title || "(no title)"}](${siteUrl(markdownPath(path))})${note ? `: ${note}` : ""}`;
@@ -200,6 +232,13 @@ export async function llmsTxt(settings: SiteSettings) {
               .filter(Boolean)
               .join(" — "),
           ),
+        )
+        .join("\n")}`,
+    shop.length &&
+      `## Products\n\n${shop
+        .map(
+          (p) =>
+            `- [${p.name}](${siteUrl(`/shop/${p.slug}.md`)}): ${formatMoney(p.priceCents, settings.shopCurrency)}${p.stock === 0 ? ", sold out" : ""}${p.summary ? ` — ${p.summary}` : ""}`,
         )
         .join("\n")}`,
     `## Optional\n\n- [RSS feed](${siteUrl("/feed")}): the latest posts\n- [REST API](${siteUrl("/wp-json")}): WordPress-compatible API for posts, pages, comments and search\n- [Forms API](${siteUrl("/wp-json/nordpress/v1")}): forms linked from pages can be read and submitted as JSON`,

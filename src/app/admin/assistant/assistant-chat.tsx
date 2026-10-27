@@ -58,6 +58,10 @@ function describeDeclined(name: string, input: Record<string, unknown> = {}) {
       return `reply to comment #${input.comment_id}`;
     case "set_image_alt_text":
       return `set alt text for image #${input.media_id}`;
+    case "save_product":
+      return input.id
+        ? `update product #${input.id}`
+        : `create product ${q(input.name)}`;
     default:
       return name;
   }
@@ -88,6 +92,14 @@ function describe(name: string, input: Record<string, unknown> = {}) {
       return `Replied to comment #${input.comment_id}`;
     case "set_image_alt_text":
       return `Set alt text for image #${input.media_id}`;
+    case "search_products":
+      return "Looked through the products";
+    case "save_product":
+      return input.id
+        ? `Updated product #${input.id}`
+        : `Created product ${q(input.name)}`;
+    case "list_orders":
+      return `Looked at ${input.status ?? "recent"} orders`;
     case "get_form_responses":
       return input.form_id
         ? `Read responses to form #${input.form_id}`

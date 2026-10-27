@@ -13,6 +13,7 @@ export type NavItem = {
     | "pages"
     | "comments"
     | "forms"
+    | "shop"
     | "appearance"
     | "plugins"
     | "tools"
@@ -95,6 +96,26 @@ const NAV: NavDef[] = [
     href: "/admin/forms",
     icon: "forms",
     cap: "edit_others_pages",
+  },
+  {
+    label: "Shop",
+    href: "/admin/shop",
+    icon: "shop",
+    cap: "edit_others_pages",
+    children: [
+      { label: "Products", href: "/admin/shop", cap: "edit_others_pages" },
+      {
+        label: "Add Product",
+        href: "/admin/shop/new",
+        cap: "edit_others_pages",
+      },
+      { label: "Orders", href: "/admin/shop/orders", cap: "manage_options" },
+      {
+        label: "Settings",
+        href: "/admin/shop/settings",
+        cap: "manage_options",
+      },
+    ],
   },
   {
     label: "Appearance",

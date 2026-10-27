@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Post } from "@/db/schema";
 import { queueIndex } from "../ai/embeddings";
 import type { AiSource } from "../ai-provenance";
+import { withAiSource } from "../ai-provenance";
 import { markdownPath } from "../ai-readable";
 import { type Capability, canOnPost, hasCap } from "../capabilities";
 import {
@@ -33,6 +34,15 @@ import {
 } from "../posts";
 import { invalidate } from "../rest/core";
 import type { Viewer } from "../session";
+import {
+  adminListProducts,
+  getProduct,
+  listOrders,
+  orderNumber,
+  SHOP_TAG,
+  saveProduct,
+} from "../shop";
+import { formatMoney, parseMoney } from "../shop/money";
 import { siteUrl } from "../site-url";
 import { createTerm, listTerms, TERMS_TAG } from "../terms";
 import { type AgentOutcome, logAgentAction } from "./audit";
@@ -292,6 +302,47 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     if (item.uploaderId !== viewer.id && !hasCap(viewer, "edit_others_posts"))
       throw denied("You can only edit media you uploaded.");
     return item;
+  }
+
+  // The product as it is and as it would be after a save_product call.
+  async function productChange(args: {
+    id?: number;
+    name?: string;
+    price?: string;
+    summary?: string;
+    description?: string;
+    stock?: number | null;
+    sku?: string;
+    shippable?: boolean;
+    status?: "draft" | "active" | "archived";
+  }) {
+    need("edit_others_pages", "manage products");
+    const before = args.id ? await getProduct(args.id) : null;
+    if (args.id && !before)
+      throw new AgentError(`There is no product with ID ${args.id}.`);
+    if (!before && !args.name)
+      throw new AgentError("A new product needs a name.");
+    if (!before && args.price === undefined)
+      throw new AgentError("A new product needs a price.");
+    const priceCents =
+      args.price !== undefined
+        ? parseMoney(args.price, settings.shopCurrency)
+        : before?.priceCents;
+    if (priceCents === null || priceCents === undefined)
+      throw new AgentError(`“${args.price}” isn't a price; use e.g. "19.90".`);
+    const after = {
+      name: args.name ?? before?.name ?? "",
+      slug: before?.slug ?? "",
+      summary: args.summary ?? before?.summary ?? "",
+      description: args.description ?? before?.description ?? "",
+      priceCents,
+      imageId: before?.imageId ?? null,
+      sku: args.sku ?? before?.sku ?? "",
+      stock: args.stock !== undefined ? args.stock : (before?.stock ?? null),
+      shippable: args.shippable ?? before?.shippable ?? true,
+      status: args.status ?? before?.status ?? "draft",
+    };
+    return { before, after };
   }
 
   async function commentFor(id: number) {
@@ -727,6 +778,167 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
         return {
           text: json({ result: `Updated the alt text of media ${item.id}.` }),
           target: `media:${item.id}`,
+        };
+      },
+    }),
+
+    // -----------------------------------------------------------------------
+    // Shop
+    // -----------------------------------------------------------------------
+    defineTool({
+      name: "search_products",
+      title: "Find products",
+      description:
+        "Lists the shop's products with price, stock and status, optionally filtered by words in the name or SKU.",
+      input: { query: z.string().max(200).optional() },
+      kind: "read",
+      run: async ({ query }) => {
+        need("edit_others_pages", "manage products");
+        const q = query?.toLowerCase().trim();
+        const rows = (await adminListProducts())
+          .map((r) => r.product)
+          .filter(
+            (p) =>
+              !q ||
+              p.name.toLowerCase().includes(q) ||
+              p.sku.toLowerCase().includes(q),
+          );
+        return {
+          text: json(
+            rows.map((p) => ({
+              id: p.id,
+              name: p.name,
+              status: p.status,
+              price: formatMoney(p.priceCents, settings.shopCurrency),
+              stock: p.stock ?? "unlimited",
+              sku: p.sku,
+              url: p.status === "active" ? siteUrl(`/shop/${p.slug}`) : null,
+              summary: p.summary,
+            })),
+          ),
+        };
+      },
+    }),
+
+    defineTool({
+      name: "save_product",
+      title: "Create or update a product",
+      description: `Creates a product, or updates one when id is given (only the fields you pass change). Prices are in ${settings.shopCurrency} as a decimal string, e.g. "19.90". The description is Markdown. New products start as drafts unless status is "active".`,
+      input: {
+        id: z.number().int().positive().optional(),
+        name: z.string().max(200).optional(),
+        price: z.string().max(20).optional(),
+        summary: z.string().max(500).optional(),
+        description: z.string().max(50_000).optional(),
+        stock: z
+          .number()
+          .int()
+          .min(0)
+          .nullable()
+          .optional()
+          .describe("null for unlimited"),
+        sku: z.string().max(100).optional(),
+        shippable: z.boolean().optional(),
+        status: z.enum(["draft", "active", "archived"]).optional(),
+      },
+      kind: "write",
+      preview: async (args) => {
+        const { before, after } = await productChange(args);
+        const details: ActionPreview["details"] = [];
+        const show = (label: string, a: unknown, b: unknown) => {
+          if (before && String(a) === String(b)) return;
+          details.push({
+            label,
+            ...(before && { before: String(a ?? "") }),
+            after: String(b ?? ""),
+          });
+        };
+        show("Name", before?.name, after.name);
+        show(
+          "Price",
+          before && formatMoney(before.priceCents, settings.shopCurrency),
+          formatMoney(after.priceCents ?? 0, settings.shopCurrency),
+        );
+        show(
+          "Stock",
+          before && (before.stock ?? "unlimited"),
+          after.stock ?? "unlimited",
+        );
+        show("Status", before?.status, after.status);
+        show("Summary", before?.summary, after.summary);
+        return {
+          summary: before
+            ? `Update the product “${before.name}”`
+            : `Create the product “${after.name}”`,
+          details,
+          ...(args.description !== undefined && {
+            body: {
+              ...(before && { before: before.description }),
+              after: args.description,
+            },
+          }),
+          ...(after.status === "active" && {
+            warning: "This product is for sale on the site.",
+          }),
+        };
+      },
+      run: async (args) => {
+        const { before, after } = await productChange(args);
+        if (after.status === "active" && !ctx.canChangeLive)
+          throw denied(
+            `Products for sale are live content, and agents can't publish on this site. Save it as a draft instead. ${POLICY_HINT}`,
+          );
+        const saved = await saveProduct(
+          after,
+          before?.id,
+          withAiSource(before?.meta, aiSourceOf(ctx)),
+        );
+        invalidate(SHOP_TAG);
+        return {
+          text: json({
+            result: `${before ? "Updated" : "Created"} product ${saved.id}.`,
+            id: saved.id,
+            status: saved.status,
+            url:
+              saved.status === "active" ? siteUrl(`/shop/${saved.slug}`) : null,
+            edit_url: siteUrl(`/admin/shop/${saved.id}`),
+          }),
+          target: `product:${saved.id}`,
+        };
+      },
+    }),
+
+    defineTool({
+      name: "list_orders",
+      title: "List orders",
+      description:
+        "The shop's orders, newest first, with status, customer, items and total. Contains customers' personal details; only share what the user needs.",
+      input: {
+        status: z
+          .enum(["pending", "paid", "fulfilled", "cancelled", "refunded"])
+          .optional(),
+        page: z.number().int().min(1).default(1),
+      },
+      kind: "read",
+      run: async ({ status, page }) => {
+        need("manage_options", "see orders");
+        const result = await listOrders({ status, page });
+        return {
+          text: json({
+            total: result.total,
+            page,
+            pages: result.pages,
+            items: result.items.map((o) => ({
+              number: orderNumber(o),
+              id: o.id,
+              status: o.status,
+              date: o.createdAt.toISOString(),
+              customer: o.name,
+              email: o.email,
+              items: o.items.map((i) => `${i.quantity} × ${i.name}`),
+              total: formatMoney(o.totalCents, o.currency),
+            })),
+          }),
         };
       },
     }),

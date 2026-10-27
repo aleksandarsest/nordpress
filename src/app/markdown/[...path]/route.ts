@@ -1,5 +1,10 @@
-import { findForMarkdown, postMarkdown } from "@/lib/ai-readable";
+import {
+  findForMarkdown,
+  postMarkdown,
+  productMarkdown,
+} from "@/lib/ai-readable";
 import { getSettings } from "@/lib/options";
+import { getShopProduct } from "@/lib/shop";
 import { siteUrl } from "@/lib/site-url";
 
 // Serves <permalink>.md (rewritten here in next.config.ts): the post or page
@@ -9,7 +14,18 @@ export async function GET(
   { params }: RouteContext<"/markdown/[...path]">,
 ) {
   const settings = await getSettings();
-  const found = await findForMarkdown((await params).path, settings);
+  const { path } = await params;
+  if (path[0] === "shop" && path.length === 2) {
+    const product = await getShopProduct(path[1]);
+    if (product)
+      return new Response(await productMarkdown(product, settings), {
+        headers: {
+          "Content-Type": "text/markdown; charset=utf-8",
+          Link: `<${siteUrl(`/shop/${product.slug}`)}>; rel="canonical"`,
+        },
+      });
+  }
+  const found = await findForMarkdown(path, settings);
   if (!found)
     return new Response("Not found\n", {
       status: 404,

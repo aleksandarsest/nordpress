@@ -7,6 +7,7 @@ import { getPageTree } from "@/lib/posts";
 import { getViewer } from "@/lib/session";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
 import { SiteChat } from "./_components/site-chat";
+import { CartButton } from "./shop/cart-button";
 
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
@@ -16,6 +17,9 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       </Suspense>
       <ThemeLayout>{children}</ThemeLayout>
       <ChatLauncher />
+      <Suspense>
+        <CartButton />
+      </Suspense>
     </>
   );
 }

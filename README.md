@@ -242,6 +242,16 @@ It uses the same tools as outside agents (below), with your own permissions:
 
 The conversation stays in your browser tab and is sent back unchanged each turn, so prompt caching and the model's reasoning carry over. **New conversation** clears it.
 
+## Shop
+
+Sell products from the same site, with nothing extra to install. Under **Shop** in the admin:
+
+- **Products:** name, summary, Markdown description, price, image, SKU, stock (or unlimited) and whether they need shipping. Active products appear at `/shop` and `/shop/<slug>`, inside the active theme.
+- **Checkout:** the cart lives in the visitor's browser and is priced on the server every time, so prices can't be tampered with. Stock is reserved when an order is placed and returned if it's cancelled or never paid.
+- **Payments:** set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, and add a Stripe webhook to `/api/shop/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded` and `checkout.session.expired`. Customers then pay on Stripe's checkout page, so card details never touch your server. Without Stripe, orders are placed for manual payment, with the instructions from **Shop → Settings** (for example bank details).
+- **Orders:** an order list and detail page to mark orders paid, fulfilled, cancelled or refunded. Customers get emails when they order, when payment arrives and when the order ships.
+- **Ready for AI shoppers:** product pages carry `Product` structured data with price and availability. Every product has a Markdown copy at `/shop/<slug>.md`, and `llms.txt` lists the catalog. The admin assistant and MCP agents can find and edit products (`search_products`, `save_product`) and review orders (`list_orders`, administrators only).
+
 ## Insights
 
 **Insights** shows how people find the site and, increasingly important, how AI assistants read it and send readers to it, over the last 30 days:
@@ -374,6 +384,7 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | (none: agents use REST with no guardrails) | MCP server at `/mcp`, `agent_actions` log, `src/lib/mcp` |
 | Nav menus (`nav_menu_item` posts) | `menus` + `menu_items` |
 | SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/structured-data.ts`, `src/lib/ai-readable.ts` |
+| WooCommerce (core store) | `products` + `orders`, `src/lib/shop`, Stripe Checkout |
 | Form plugins (Contact Form 7, Gravity Forms) | `forms` + `form_submissions`, built in |
 | Themes and `theme_mods` | `src/themes/*`, options saved as `theme:<slug>` |
 

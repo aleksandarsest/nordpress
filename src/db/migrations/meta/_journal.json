@@ -85,6 +85,13 @@
       "when": 1793134416765,
       "tag": "0011_lumpy_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793134780931,
+      "tag": "0012_elite_satana",
+      "breakpoints": true
     }
   ]
 }

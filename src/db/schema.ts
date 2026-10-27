@@ -574,6 +574,90 @@ export const trafficDaily = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Shop
+// ---------------------------------------------------------------------------
+
+export const productStatusEnum = pgEnum("product_status", [
+  "draft",
+  "active",
+  "archived",
+]);
+
+export const products = pgTable("products", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  // One or two sentences for listings
+  summary: text("summary").notNull().default(""),
+  // Markdown as written, and the sanitized HTML rendered from it
+  description: text("description").notNull().default(""),
+  descriptionHtml: text("description_html").notNull().default(""),
+  // Whole cents in the store currency
+  priceCents: integer("price_cents").notNull(),
+  imageId: bigint("image_id", { mode: "number" }).references(() => media.id, {
+    onDelete: "set null",
+  }),
+  sku: text("sku").notNull().default(""),
+  // Null means unlimited
+  stock: integer("stock"),
+  // Physical goods need a shipping address at checkout
+  shippable: boolean("shippable").notNull().default(true),
+  status: productStatusEnum("status").notNull().default("draft"),
+  meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
+  ...timestamps,
+});
+
+export const orderStatusEnum = pgEnum("order_status", [
+  "pending",
+  "paid",
+  "fulfilled",
+  "cancelled",
+  "refunded",
+]);
+
+export type OrderItem = {
+  productId: number;
+  name: string;
+  sku: string;
+  priceCents: number;
+  quantity: number;
+  shippable: boolean;
+};
+
+export type OrderAddress = {
+  line1: string;
+  line2: string;
+  city: string;
+  postalCode: string;
+  country: string;
+};
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    // A secret for the customer's order page link
+    token: text("token").notNull().unique(),
+    status: orderStatusEnum("status").notNull().default("pending"),
+    email: text("email").notNull(),
+    name: text("name").notNull(),
+    address: jsonb("address").$type<OrderAddress | null>(),
+    note: text("note").notNull().default(""),
+    items: jsonb("items").$type<OrderItem[]>().notNull(),
+    totalCents: integer("total_cents").notNull(),
+    currency: text("currency").notNull(),
+    // "stripe" or "manual"
+    payment: text("payment").notNull(),
+    paymentRef: text("payment_ref"),
+    // Stock taken by this order goes back if it's cancelled
+    stockReturned: boolean("stock_returned").notNull().default(false),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("orders_status_idx").on(t.status, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 
@@ -598,3 +682,6 @@ export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type SubmissionStatus = (typeof submissionStatusEnum.enumValues)[number];
 export type AgentAction = typeof agentActions.$inferSelect;
 export type Suggestion = typeof suggestions.$inferSelect;
+export type Product = typeof products.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
