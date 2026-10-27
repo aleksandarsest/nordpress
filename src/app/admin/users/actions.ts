@@ -1,11 +1,13 @@
 "use server";
 
 import { refresh, updateTag } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createUserWithPassword, setUserPassword } from "@/lib/auth";
+import { auth, createUserWithPassword, setUserPassword } from "@/lib/auth";
 import { hasCap } from "@/lib/capabilities";
 import { email, type FormState, formError, password, str } from "@/lib/form";
+import { mailConfigured } from "@/lib/mail";
 import { POSTS_TAG } from "@/lib/posts";
 import { assertCap, getViewer, PermissionError } from "@/lib/session";
 import {
@@ -114,4 +116,26 @@ export async function deleteUserAction(formData: FormData) {
   await deleteUser(id, reassign && reassign !== id ? reassign : null);
   updateTag(POSTS_TAG);
   redirect("/admin/users?deleted=1");
+}
+
+export async function sendPasswordResetAction(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  try {
+    await assertCap("edit_users");
+    const target = await getUser(str(formData, "id"));
+    if (!target) throw new Error("User not found.");
+    await auth.api.requestPasswordReset({
+      body: { email: target.email, redirectTo: "/reset-password" },
+      headers: await headers(),
+    });
+    return {
+      message: mailConfigured()
+        ? `A password reset link was emailed to ${target.email}.`
+        : "Email isn't set up (SMTP_URL), so the reset link was written to the server log instead.",
+    };
+  } catch (error) {
+    return formError(error);
+  }
 }

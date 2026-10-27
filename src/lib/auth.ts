@@ -4,6 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db, schema } from "@/db";
 import type { Role } from "@/db/schema";
+import { sendPasswordResetMail } from "./mail";
 import { doAction } from "./plugins";
 
 export const auth = betterAuth({
@@ -22,6 +23,16 @@ export const auth = betterAuth({
     // open registration (see registerUser), never by the raw endpoint.
     disableSignUp: true,
     minPasswordLength: 8,
+    resetPasswordTokenExpiresIn: 60 * 60,
+    // Signs out every device once the password changes
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url }) => {
+      // Not awaited, so the response time doesn't reveal whether an
+      // account exists for the address
+      void sendPasswordResetMail(user, url).catch((error) =>
+        console.error("[mail] password reset email failed:", error),
+      );
+    },
   },
   user: {
     additionalFields: {

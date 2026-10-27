@@ -38,6 +38,10 @@ Uploads are stored on local disk by default (`UPLOADS_DIR`). For hosts without a
 
 Either way, files are served at `/uploads/...` with long-lived cache headers, so URLs never change when you switch storage; put a CDN in front for best performance. Images are resized on demand by the Next.js image optimizer (WebP/AVIF), so no fixed thumbnail sizes are generated.
 
+## Email
+
+Nordpress sends email for password resets ("Lost your password?" on the login screen, and **Send Reset Link** on each user in the admin). Set `SMTP_URL` to any SMTP provider (Postmark, Resend, SendGrid, Amazon SES, Mailgun, your own server) and optionally `MAIL_FROM`. Without `SMTP_URL`, emails are written to the server log, which is handy in development.
+
 ## Scripts
 
 - `pnpm dev`: development server

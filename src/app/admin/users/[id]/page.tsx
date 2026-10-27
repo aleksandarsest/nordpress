@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { hasCap } from "@/lib/capabilities";
@@ -7,7 +8,7 @@ import { requireViewer } from "@/lib/session";
 import { getUser, listUsers } from "@/lib/users";
 import { first } from "../../_components/screen";
 import { UserForm } from "../../_components/user-form";
-import { deleteUserAction } from "../actions";
+import { deleteUserAction, sendPasswordResetAction } from "../actions";
 
 export const metadata: Metadata = { title: "Edit User" };
 
@@ -35,6 +36,22 @@ export default async function EditUserPage({
         </Alert>
       )}
       <UserForm user={user} canChangeRole={hasCap(viewer, "promote_users")} />
+      <ActionForm
+        action={sendPasswordResetAction}
+        className="mt-8 grid max-w-xl gap-2 text-sm"
+      >
+        <input type="hidden" name="id" value={user.id} />
+        <h2 className="font-semibold">Password reset</h2>
+        <p className="text-muted-foreground">
+          Email {user.name} a link to choose a new password. Useful for imported
+          authors, who start with a random password.
+        </p>
+        <div>
+          <SubmitButton variant="outline" size="sm" pendingLabel="Sending…">
+            Send Reset Link
+          </SubmitButton>
+        </div>
+      </ActionForm>
       {hasCap(viewer, "delete_users") && (
         <form
           action={deleteUserAction}

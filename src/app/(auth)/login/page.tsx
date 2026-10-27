@@ -40,6 +40,13 @@ async function LoginForm({
           <AlertDescription>You are now logged out.</AlertDescription>
         </Alert>
       )}
+      {params.reset && (
+        <Alert className="mb-4">
+          <AlertDescription>
+            Your password has been reset. You can log in now.
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardContent>
           <ActionForm action={login} className="grid gap-4">
@@ -72,13 +79,16 @@ async function LoginForm({
           </ActionForm>
         </CardContent>
       </Card>
-      {settings.usersCanRegister && (
-        <p className="mt-4 text-center text-sm">
+      <p className="mt-4 flex justify-center gap-4 text-sm">
+        {settings.usersCanRegister && (
           <Link href="/register" className="hover:underline">
             Register
           </Link>
-        </p>
-      )}
+        )}
+        <Link href="/forgot-password" className="hover:underline">
+          Lost your password?
+        </Link>
+      </p>
     </>
   );
 }

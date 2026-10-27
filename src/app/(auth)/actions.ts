@@ -10,6 +10,7 @@ import { email, type FormState, formError, password, str } from "@/lib/form";
 import { installSite, isInstalled } from "@/lib/install";
 import { getSettings, SETTINGS_TAG } from "@/lib/options";
 import { POSTS_TAG } from "@/lib/posts";
+import { rateLimit } from "@/lib/rate-limit";
 import { TERMS_TAG } from "@/lib/terms";
 
 // Only allow same-site relative redirects after login
@@ -96,4 +97,59 @@ export async function install(
   updateTag(POSTS_TAG);
   updateTag(TERMS_TAG);
   redirect("/admin?installed=1");
+}
+
+const RESET_SENT =
+  "If an account exists for that address, we've emailed a link to reset the password. Check your inbox (and spam folder).";
+
+export async function requestPasswordReset(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const address = str(formData, "email").trim().toLowerCase();
+  if (!email.safeParse(address).success)
+    return { error: "Please enter a valid email address." };
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Same answer either way, so the form can't be used to find accounts
+  if (
+    !rateLimit(`reset:${ip}`, 5, 15 * 60_000).ok ||
+    !rateLimit(`reset:${address}`, 3, 60 * 60_000).ok
+  ) {
+    return { message: RESET_SENT };
+  }
+  try {
+    await auth.api.requestPasswordReset({
+      body: { email: address, redirectTo: "/reset-password" },
+      headers: h,
+    });
+  } catch (error) {
+    console.error("[auth] password reset request failed:", error);
+  }
+  return { message: RESET_SENT };
+}
+
+export async function resetPassword(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const token = str(formData, "token");
+  const newPassword = str(formData, "password");
+  if (newPassword !== str(formData, "confirm"))
+    return { error: "The passwords don't match." };
+  const parsed = password.safeParse(newPassword);
+  if (!parsed.success) return formError(parsed.error);
+  try {
+    await auth.api.resetPassword({ body: { newPassword, token } });
+  } catch (error) {
+    if (error instanceof APIError) {
+      return {
+        error:
+          "This reset link is invalid or has expired. Please request a new one.",
+      };
+    }
+    return formError(error);
+  }
+  redirect("/login?reset=1");
 }
