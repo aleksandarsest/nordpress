@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChartColumn,
   ClipboardList,
   File,
   Gauge,
@@ -25,6 +26,7 @@ const ICONS = {
   dashboard: Gauge,
   assistant: Sparkles,
   inbox: Inbox,
+  insights: ChartColumn,
   posts: Pin,
   media: Image,
   pages: File,

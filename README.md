@@ -242,6 +242,16 @@ It uses the same tools as outside agents (below), with your own permissions:
 
 The conversation stays in your browser tab and is sent back unchanged each turn, so prompt caching and the model's reasoning carry over. **New conversation** clears it.
 
+## Insights
+
+**Insights** shows how people find the site and, increasingly important, how AI assistants read it and send readers to it, over the last 30 days:
+
+- **Visits from AI answers:** people arriving from ChatGPT, Claude, Perplexity, Gemini, Copilot and others, by assistant and by page. These are the pages AI answers cite.
+- **AI crawler reads:** GPTBot, ClaudeBot, PerplexityBot and the rest, which pages they read, and how often they use the Markdown copies and `llms.txt`.
+- **Page views** from search, social, other sites and direct visits.
+
+Counting happens in `src/proxy.ts`: one daily counter per page and source, with no cookies, IP addresses or user agents stored, so there's no consent banner to show. Signed-in team members, client-side navigation and prefetches aren't counted.
+
 ## Inbox
 
 The **Inbox** is where Nordpress brings you things worth doing. Every day it checks for:

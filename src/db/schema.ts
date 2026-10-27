@@ -5,6 +5,7 @@ import {
   bigserial,
   boolean,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -546,6 +547,29 @@ export const suggestions = pgTable(
   (t) => [
     index("suggestions_status_idx").on(t.status, t.createdAt),
     index("suggestions_target_idx").on(t.kind, t.target),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Insights: daily request counts by page and source. No cookies, IPs or
+// user agents are stored, only these counts.
+// ---------------------------------------------------------------------------
+
+export const trafficDaily = pgTable(
+  "traffic_daily",
+  {
+    day: date("day").notNull(),
+    path: text("path").notNull(),
+    // "ai_crawler", "search_crawler", "bot", "ai_referral", "search",
+    // "social", "referral", "internal" or "direct"
+    source: text("source").notNull(),
+    // The crawler or referring site, e.g. "ClaudeBot" or "ChatGPT"
+    agent: text("agent").notNull().default(""),
+    hits: integer("hits").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.day, t.path, t.source, t.agent] }),
+    index("traffic_daily_source_idx").on(t.source, t.day),
   ],
 );
 

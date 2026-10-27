@@ -7,6 +7,7 @@ export type NavItem = {
     | "dashboard"
     | "assistant"
     | "inbox"
+    | "insights"
     | "posts"
     | "media"
     | "pages"
@@ -39,6 +40,12 @@ const NAV: NavDef[] = [
     label: "Inbox",
     href: "/admin/inbox",
     icon: "inbox",
+    cap: "edit_others_posts",
+  },
+  {
+    label: "Insights",
+    href: "/admin/insights",
+    icon: "insights",
     cap: "edit_others_posts",
   },
   {

@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
   htmlLimitedBots:
     /Googlebot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight|GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|PerplexityBot|Perplexity-User|CCBot|meta-externalagent|Bytespider|Amazonbot|DuckAssistBot|MistralAI-User/i,
   partialPrefetching: true,
+  // The Insights counter in src/proxy.ts must see client-side navigation and
+  // prefetch requests as they are, to leave them out. The proxy never
+  // rewrites or redirects, so nothing else changes.
+  skipProxyUrlNormalize: true,
   async rewrites() {
     // Every post and page also has a Markdown version at <permalink>.md;
     // uploads and app routes keep their own .md files
