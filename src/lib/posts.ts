@@ -128,6 +128,8 @@ export async function listPublished(query: ListQuery) {
         ...summaryColumns,
         authorName: user.name,
         featuredPath: media.path,
+        featuredWidth: media.width,
+        featuredHeight: media.height,
         featuredAlt: media.alt,
       })
       .from(posts)
@@ -162,6 +164,8 @@ export async function publishedSummaries(
       ...summaryColumns,
       authorName: user.name,
       featuredPath: media.path,
+      featuredWidth: media.width,
+      featuredHeight: media.height,
       featuredAlt: media.alt,
     })
     .from(posts)
@@ -195,6 +199,8 @@ export async function getPublished(lookup: PublishedLookup) {
       authorName: user.name,
       authorBio: user.bio,
       featuredPath: media.path,
+      featuredWidth: media.width,
+      featuredHeight: media.height,
       featuredAlt: media.alt,
     })
     .from(posts)
@@ -210,6 +216,8 @@ export async function getPublished(lookup: PublishedLookup) {
     authorBio: row.authorBio,
     featuredPath: row.featuredPath,
     featuredAlt: row.featuredAlt,
+    featuredWidth: row.featuredWidth,
+    featuredHeight: row.featuredHeight,
     terms: termsByPost.get(row.post.id) ?? [],
   };
 }

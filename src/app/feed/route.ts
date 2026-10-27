@@ -12,6 +12,13 @@ const escapeXml = (s: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+// Feed readers can't resolve site-relative links in content
+const absolutize = (html: string) =>
+  html.replace(
+    /(src|href)="\/(?!\/)/g,
+    (_m, attr) => `${attr}="${siteUrl("/")}`,
+  );
+
 const cdata = (s: string) =>
   `<![CDATA[${s.replaceAll("]]>", "]]]]><![CDATA[>")}]]>`;
 
@@ -35,7 +42,7 @@ export async function GET() {
       ${post.authorName ? `<dc:creator>${cdata(post.authorName)}</dc:creator>` : ""}
       ${post.terms.map((t) => `<category>${cdata(t.name)}</category>`).join("")}
       <description>${cdata(post.excerpt || makeExcerpt(post.contentText))}</description>
-      <content:encoded>${cdata(bodies[i])}</content:encoded>
+      <content:encoded>${cdata(absolutize(bodies[i]))}</content:encoded>
     </item>`;
     })
     .join("\n");

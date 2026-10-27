@@ -86,7 +86,12 @@ export async function loadPreview(token: string, viewerId: string) {
       .where(eq(user.id, authorId)),
     input.featuredMediaId
       ? db
-          .select({ path: media.path, alt: media.alt })
+          .select({
+            path: media.path,
+            alt: media.alt,
+            width: media.width,
+            height: media.height,
+          })
           .from(media)
           .where(eq(media.id, input.featuredMediaId))
       : Promise.resolve([]),
@@ -160,6 +165,8 @@ export async function loadPreview(token: string, viewerId: string) {
     authorBio: author?.bio ?? null,
     featuredPath: featured[0]?.path ?? null,
     featuredAlt: featured[0]?.alt ?? null,
+    featuredWidth: featured[0]?.width ?? null,
+    featuredHeight: featured[0]?.height ?? null,
     terms: [...cats, ...tagRows, ...newTags],
   };
 }

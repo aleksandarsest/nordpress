@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { UploadImage } from "@/components/upload-image";
 import { makeExcerpt } from "@/lib/content";
 import { formatInZone } from "@/lib/dates";
-import { mediaUrl } from "@/lib/media";
 import type { SiteSettings } from "@/lib/options";
 import { authorPath, postPath, termPath } from "@/lib/permalinks";
 import type { PostSummary } from "@/lib/posts";
@@ -67,11 +67,13 @@ export function PostList({
           <article key={post.id} className="grid gap-3">
             {post.featuredPath && (
               <Link href={href}>
-                {/* biome-ignore lint/performance/noImgElement: arbitrary user uploads */}
-                <img
-                  src={mediaUrl(post.featuredPath)}
+                <UploadImage
+                  path={post.featuredPath}
                   alt={post.featuredAlt ?? ""}
-                  className="aspect-video w-full rounded-lg object-cover"
+                  width={post.featuredWidth}
+                  height={post.featuredHeight}
+                  sizes="(min-width: 800px) 768px, 100vw"
+                  className="aspect-video h-auto w-full rounded-lg object-cover"
                 />
               </Link>
             )}

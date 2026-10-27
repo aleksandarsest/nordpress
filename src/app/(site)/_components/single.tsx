@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { mediaUrl } from "@/lib/media";
+import { UploadImage } from "@/components/upload-image";
+import { CONTENT_SIZES, responsiveContent } from "@/lib/images";
 import type { SiteSettings } from "@/lib/options";
 import { postPath, termPath } from "@/lib/permalinks";
 import { applyFilters } from "@/lib/plugins";
@@ -36,11 +37,14 @@ export function SingleView({
         {post.type === "post" && <PostMeta post={post} settings={settings} />}
       </header>
       {post.featuredPath && (
-        // biome-ignore lint/performance/noImgElement: arbitrary user uploads
-        <img
-          src={mediaUrl(post.featuredPath)}
+        <UploadImage
+          path={post.featuredPath}
           alt={post.featuredAlt ?? ""}
-          className="w-full rounded-lg"
+          width={post.featuredWidth}
+          height={post.featuredHeight}
+          sizes={CONTENT_SIZES}
+          className="h-auto w-full rounded-lg"
+          priority
         />
       )}
       <PostBody post={post} />
@@ -87,9 +91,13 @@ export function SingleView({
 
 // The post body after plugins have had a chance to filter it.
 async function PostBody({ post }: { post: SinglePost }) {
-  const html = await applyFilters("post.contentHtml", post.contentHtml, {
-    post,
-  });
+  const html = await applyFilters(
+    "post.contentHtml",
+    await responsiveContent(post.contentHtml),
+    {
+      post,
+    },
+  );
   return (
     <div
       className="prose prose-neutral dark:prose-invert max-w-none"

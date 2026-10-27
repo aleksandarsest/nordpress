@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
+import { UploadImage } from "@/components/upload-image";
 import { aiConfigured } from "@/lib/ai/client";
-import { countMissingAltText, listMedia, mediaUrl } from "@/lib/media";
+import { countMissingAltText, listMedia } from "@/lib/media";
 import { getSettings } from "@/lib/options";
 import { requireViewer } from "@/lib/session";
 import { BulkAltText } from "../_components/bulk-alt-text";
@@ -64,11 +65,12 @@ export default async function MediaPage({
               title={item.title}
             >
               {item.mimeType.startsWith("image/") ? (
-                // biome-ignore lint/performance/noImgElement: arbitrary user uploads
-                <img
-                  src={mediaUrl(item.path)}
+                <UploadImage
+                  path={item.path}
                   alt={item.alt || item.title}
-                  loading="lazy"
+                  width={item.width}
+                  height={item.height}
+                  sizes="(min-width: 1280px) 160px, (min-width: 640px) 25vw, 50vw"
                   className="size-full object-cover transition group-hover:scale-105"
                 />
               ) : (
