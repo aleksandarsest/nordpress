@@ -6,6 +6,7 @@ export type NavItem = {
   icon:
     | "dashboard"
     | "assistant"
+    | "inbox"
     | "posts"
     | "media"
     | "pages"
@@ -33,6 +34,12 @@ const NAV: NavDef[] = [
     href: "/admin/assistant",
     icon: "assistant",
     cap: "edit_posts",
+  },
+  {
+    label: "Inbox",
+    href: "/admin/inbox",
+    icon: "inbox",
+    cap: "edit_others_posts",
   },
   {
     label: "Posts",
@@ -161,6 +168,7 @@ export function navFor(
   actor: Actor,
   pendingComments = 0,
   tools: ToolPage[] = [],
+  openSuggestions = 0,
 ): NavItem[] {
   const canListUsers = hasCap(actor, "list_users");
   // Plugin pages appear under Tools, as in WordPress
@@ -193,7 +201,9 @@ export function navFor(
       badge:
         item.icon === "comments" && pendingComments
           ? pendingComments
-          : undefined,
+          : item.icon === "inbox" && openSuggestions
+            ? openSuggestions
+            : undefined,
       children: children
         ?.filter((c) => hasCap(actor, c.cap))
         .map(({ cap: _c, ...c }) => c),

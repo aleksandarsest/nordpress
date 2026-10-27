@@ -21,6 +21,7 @@ export const FEATURE_LABELS: Record<string, string> = {
   form_draft: "Form drafting",
   assistant: "Admin assistant",
   site_setup: "Site setup",
+  inbox: "AI inbox checks",
   form_triage: "Form spam triage",
   embed_index: "Search indexing (Voyage)",
   embed_query: "Search queries (Voyage)",

@@ -5,6 +5,7 @@ import {
   File,
   Gauge,
   Image,
+  Inbox,
   MessageSquare,
   Paintbrush,
   Pin,
@@ -23,6 +24,7 @@ import type { NavItem } from "./nav-items";
 const ICONS = {
   dashboard: Gauge,
   assistant: Sparkles,
+  inbox: Inbox,
   posts: Pin,
   media: Image,
   pages: File,

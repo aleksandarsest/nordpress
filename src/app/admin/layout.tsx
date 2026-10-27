@@ -6,6 +6,7 @@ import { logout } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { hasCap } from "@/lib/capabilities";
 import { countPendingComments } from "@/lib/comments";
+import { countOpenSuggestions } from "@/lib/inbox";
 import { getSettings } from "@/lib/options";
 import { toolPages } from "@/lib/plugins";
 import { requireViewer } from "@/lib/session";
@@ -37,6 +38,9 @@ async function AdminShell({ children }: { children: React.ReactNode }) {
   const pending = hasCap(viewer, "moderate_comments")
     ? await countPendingComments()
     : 0;
+  const suggestions = hasCap(viewer, "edit_others_posts")
+    ? await countOpenSuggestions()
+    : 0;
 
   return (
     <div className="flex min-h-svh flex-1 flex-col bg-muted/40">
@@ -60,7 +64,7 @@ async function AdminShell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="flex flex-1">
         <aside className="hidden w-56 shrink-0 border-r bg-sidebar p-3 md:block">
-          <AdminNav items={navFor(viewer, pending, tools)} />
+          <AdminNav items={navFor(viewer, pending, tools, suggestions)} />
         </aside>
         <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
       </div>

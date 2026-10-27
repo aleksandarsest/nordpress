@@ -62,6 +62,10 @@ export type SiteSettings = {
   brandVoice: string;
   /** Tell readers when AI helped write a post or page. */
   aiDisclosure: boolean;
+  /** Run daily site checks and propose fixes in the AI inbox. */
+  inboxEnabled: boolean;
+  /** ISO time the inbox checks last ran. */
+  inboxLastRun: string;
   /** Let AI agents connect over MCP at /mcp with an application password. */
   mcpEnabled: boolean;
   /**
@@ -112,6 +116,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   siteAbout: "",
   brandVoice: "",
   aiDisclosure: false,
+  inboxEnabled: true,
+  inboxLastRun: "",
   mcpEnabled: true,
   agentsCanPublish: false,
   activePlugins: [],

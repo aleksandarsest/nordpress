@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { after } from "next/server";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hasCap } from "@/lib/capabilities";
 import { countPendingComments } from "@/lib/comments";
+import { runSiteChecksIfDue } from "@/lib/inbox";
 import { getSettings } from "@/lib/options";
 import { dashboardStats, recentDrafts } from "@/lib/posts";
 import { requireViewer } from "@/lib/session";
@@ -23,6 +25,13 @@ export default async function DashboardPage({
   const [stats, drafts] = canWrite
     ? await Promise.all([dashboardStats(), recentDrafts(viewer.id)])
     : [null, []];
+  // The inbox checks run at most daily, after this page has been sent
+  if (hasCap(viewer, "manage_options"))
+    after(() =>
+      runSiteChecksIfDue().catch((error) =>
+        console.error("[inbox] daily checks failed", error),
+      ),
+    );
   const setupCard =
     hasCap(viewer, "manage_options") && !(await getSettings()).setupCompleted;
   const pendingComments = hasCap(viewer, "moderate_comments")

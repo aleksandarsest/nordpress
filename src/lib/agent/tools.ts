@@ -16,6 +16,7 @@ import {
 import { htmlToDoc } from "../content";
 import { listForms, listSubmissions } from "../forms";
 import { docToMarkdown, markdownToHtml } from "../markdown";
+import { getMedia, mediaUrl, updateMedia } from "../media";
 import type { SiteSettings } from "../options";
 import { postPath } from "../permalinks";
 import {
@@ -62,6 +63,8 @@ export type ActionPreview = {
   body?: { before?: string; after: string };
   /** A caution worth reading before approving. */
   warning?: string;
+  /** An image the change is about, shown with the preview. */
+  image?: string;
 };
 
 type Result = { text: string; target?: string };
@@ -105,7 +108,11 @@ export class AgentError extends Error {
 const denied = (message: string) => new AgentError(message, "denied");
 
 const aiSourceOf = (ctx: ToolContext): AiSource =>
-  ctx.client === "admin" ? "assistant" : "agent";
+  ctx.credential === "AI inbox"
+    ? "inbox"
+    : ctx.client === "admin"
+      ? "assistant"
+      : "agent";
 
 const LIVE: Post["status"][] = ["publish", "future", "private"];
 
@@ -277,6 +284,15 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     tags: writeFields.tags.optional(),
     publish_at: writeFields.publish_at.optional(),
   };
+
+  async function mediaFor(id: number) {
+    need("upload_files", "edit media");
+    const item = await getMedia(id);
+    if (!item) throw new AgentError(`There is no media item with ID ${id}.`);
+    if (item.uploaderId !== viewer.id && !hasCap(viewer, "edit_others_posts"))
+      throw denied("You can only edit media you uploaded.");
+    return item;
+  }
 
   async function commentFor(id: number) {
     const comment = await getComment(id);
@@ -676,6 +692,41 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
             result: `Moved ${post.type} ${id} (“${post.title}”) to the trash.`,
           }),
           target: `${post.type}:${id}`,
+        };
+      },
+    }),
+
+    defineTool({
+      name: "set_image_alt_text",
+      title: "Set an image's alt text",
+      description:
+        "Sets the alternative text of an image in the media library: a short description for people using screen readers and for search. Empty for purely decorative images.",
+      input: {
+        media_id: z.number().int().positive(),
+        alt: z.string().max(500),
+      },
+      kind: "write",
+      idempotent: true,
+      preview: async ({ media_id, alt }) => {
+        const item = await mediaFor(media_id);
+        return {
+          summary: `Set the alt text of “${item.title || item.path}”`,
+          details: [
+            { label: "Alt text", before: item.alt || null, after: alt },
+          ],
+          image: mediaUrl(item.path),
+        };
+      },
+      run: async ({ media_id, alt }) => {
+        const item = await mediaFor(media_id);
+        await updateMedia(item.id, {
+          title: item.title,
+          alt: alt.trim(),
+          caption: item.caption,
+        });
+        return {
+          text: json({ result: `Updated the alt text of media ${item.id}.` }),
+          target: `media:${item.id}`,
         };
       },
     }),

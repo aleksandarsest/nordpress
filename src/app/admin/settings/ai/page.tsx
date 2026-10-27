@@ -132,6 +132,21 @@ export default async function AiSettingsPage() {
           </div>
         </fieldset>
         <fieldset className="grid gap-3 border-t pt-6">
+          <legend className="mb-2 font-semibold text-base">Inbox</legend>
+          <Label className="items-start font-normal">
+            <Checkbox name="inbox_enabled" defaultChecked={s.inboxEnabled} />
+            <span>
+              Check the site daily and propose fixes in the Inbox
+              <span className="block text-muted-foreground text-xs">
+                Finds posts without excerpts, images without alt text, broken
+                links and waiting work. Claude drafts up to 8 fixes a day for
+                you to approve. Runs when an administrator opens the dashboard,
+                or on a schedule with CRON_SECRET (see README).
+              </span>
+            </span>
+          </Label>
+        </fieldset>
+        <fieldset className="grid gap-3 border-t pt-6">
           <legend className="mb-2 font-semibold text-base">Transparency</legend>
           <Label className="items-start font-normal">
             <Checkbox name="ai_disclosure" defaultChecked={s.aiDisclosure} />

@@ -242,6 +242,19 @@ It uses the same tools as outside agents (below), with your own permissions:
 
 The conversation stays in your browser tab and is sent back unchanged each turn, so prompt caching and the model's reasoning carry over. **New conversation** clears it.
 
+## Inbox
+
+The **Inbox** is where Nordpress brings you things worth doing. Every day it checks for:
+
+- **Posts without an excerpt:** Claude drafts one in your brand voice.
+- **Images without alt text:** Claude describes them.
+- **Links that lead nowhere:** links to pages that no longer exist, and to external sites that are gone.
+- **Waiting work:** comments to moderate and new form responses.
+
+Fixes Claude can draft come with a preview of the change and an **Approve** button; nothing changes until you press it. The rest link to where you fix them. Dismissed items stay away for 30 days, and items fixed some other way clear themselves on the next check. Claude drafts at most 8 fixes a day.
+
+Checks run when an administrator opens the dashboard (at most daily) or with **Run checks now**. To run them on a schedule instead, set `CRON_SECRET` and call `GET /api/cron/site-checks` with `Authorization: Bearer <CRON_SECRET>` (Vercel Cron does this for you). Turn checks off under **Settings → AI**.
+
 ## AI agents (MCP)
 
 Nordpress is an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so Claude Code, Claude Desktop and other agents can manage the site: "draft a post about our launch and tag it", "what's waiting in moderation?", "summarize this week's contact form responses".

@@ -4,6 +4,7 @@
 export const AI_SOURCES = {
   "writing-assistant": "the writing assistant",
   assistant: "the admin assistant",
+  inbox: "the AI inbox",
   agent: "an AI agent",
   "site-setup": "AI site setup",
 } as const;

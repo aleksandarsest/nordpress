@@ -1,7 +1,5 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
 import { and, eq, sql } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { db } from "@/db";
@@ -27,6 +25,7 @@ import {
   updateMedia,
 } from "@/lib/media";
 import { createMenu, isAllowedMenuUrl, MENUS_TAG } from "@/lib/menus";
+import { assertPublicUrl } from "@/lib/net";
 import { SETTINGS_TAG } from "@/lib/options";
 import { POSTS_TAG, type SaveIntent, savePost } from "@/lib/posts";
 import type { Viewer } from "@/lib/session";
@@ -382,44 +381,12 @@ function rewriteMediaUrls(html: string, urlMap: Map<string, string>) {
   );
 }
 
-const PRIVATE_V4 = [
-  /^10\./,
-  /^127\./,
-  /^169\.254\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^192\.168\./,
-  /^0\./,
-  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
-];
-
-function isPrivateAddress(address: string) {
-  if (isIP(address) === 6) {
-    const a = address.toLowerCase();
-    return (
-      a === "::1" ||
-      a === "::" ||
-      a.startsWith("fc") ||
-      a.startsWith("fd") ||
-      a.startsWith("fe80") ||
-      a.startsWith("::ffff:127.") ||
-      a.startsWith("::ffff:10.") ||
-      a.startsWith("::ffff:192.168.")
-    );
-  }
-  return PRIVATE_V4.some((r) => r.test(address));
-}
-
 // Downloads a file named in the export, refusing internal network addresses
 // (unless explicitly allowed) so an export file can't probe the server's network.
 async function download(url: string, allowPrivate: boolean) {
-  const parsed = new URL(url);
+  const parsed = allowPrivate ? new URL(url) : await assertPublicUrl(url);
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
     throw new Error("only http(s) URLs are allowed");
-  if (!allowPrivate) {
-    const addresses = await lookup(parsed.hostname, { all: true });
-    if (addresses.some((a) => isPrivateAddress(a.address)))
-      throw new Error("refusing a private network address");
-  }
   const res = await fetch(parsed, {
     redirect: "error",
     signal: AbortSignal.timeout(30_000),

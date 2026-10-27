@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  AlertTriangle,
-  Check,
-  CircleX,
-  Loader2,
-  RotateCcw,
-  Send,
-  X,
-} from "lucide-react";
+import { Check, CircleX, Loader2, RotateCcw, Send, X } from "lucide-react";
 import {
   type FormEvent,
   type ReactNode,
@@ -21,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActionPreview } from "@/lib/agent/tools";
 import { cn } from "@/lib/utils";
+import { ActionPreviewView } from "../_components/action-preview";
 
 // Loose shapes of the Messages API transcript; the server owns its meaning.
 type Block = {
@@ -63,6 +56,8 @@ function describeDeclined(name: string, input: Record<string, unknown> = {}) {
       return `${input.action} comment #${input.id}`;
     case "reply_to_comment":
       return `reply to comment #${input.comment_id}`;
+    case "set_image_alt_text":
+      return `set alt text for image #${input.media_id}`;
     default:
       return name;
   }
@@ -91,6 +86,8 @@ function describe(name: string, input: Record<string, unknown> = {}) {
       return `Comment #${input.id}: ${input.action}`;
     case "reply_to_comment":
       return `Replied to comment #${input.comment_id}`;
+    case "set_image_alt_text":
+      return `Set alt text for image #${input.media_id}`;
     case "get_form_responses":
       return input.form_id
         ? `Read responses to form #${input.form_id}`
@@ -452,49 +449,7 @@ function ApprovalCard({
             : "border-muted opacity-60",
       )}
     >
-      <p className="font-medium">{preview.summary}</p>
-      {preview.warning && (
-        <p className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          {preview.warning}
-        </p>
-      )}
-      {preview.details.length > 0 && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-          {preview.details.map((d) => (
-            <div key={d.label} className="contents">
-              <dt className="text-muted-foreground">{d.label}</dt>
-              <dd>
-                {d.before !== undefined && (
-                  <>
-                    <span className="text-muted-foreground line-through">
-                      {d.before || "(empty)"}
-                    </span>{" "}
-                    →{" "}
-                  </>
-                )}
-                {d.after || "(empty)"}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {preview.body && (
-        <div
-          className={cn(
-            "grid gap-2",
-            preview.body.before !== undefined && "md:grid-cols-2",
-          )}
-        >
-          {preview.body.before !== undefined && (
-            <BodyPane label="Before" text={preview.body.before} muted />
-          )}
-          <BodyPane
-            label={preview.body.before !== undefined ? "After" : "Content"}
-            text={preview.body.after}
-          />
-        </div>
-      )}
+      <ActionPreviewView preview={preview} />
       {decision === undefined ? (
         <div className="flex gap-2">
           <Button size="sm" disabled={disabled} onClick={() => onDecide(true)}>
@@ -515,29 +470,5 @@ function ApprovalCard({
         </p>
       )}
     </section>
-  );
-}
-
-function BodyPane({
-  label,
-  text,
-  muted,
-}: {
-  label: string;
-  text: string;
-  muted?: boolean;
-}) {
-  return (
-    <div className="grid gap-1">
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <pre
-        className={cn(
-          "max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-3 font-sans text-xs leading-relaxed",
-          muted && "text-muted-foreground",
-        )}
-      >
-        {text || "(empty)"}
-      </pre>
-    </div>
   );
 }

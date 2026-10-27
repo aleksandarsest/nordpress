@@ -512,6 +512,44 @@ export const agentActions = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// AI inbox: suggestions from scheduled site checks, waiting for a person
+// ---------------------------------------------------------------------------
+
+export const suggestionStatusEnum = pgEnum("suggestion_status", [
+  "pending",
+  "applied",
+  "dismissed",
+]);
+
+export const suggestions = pgTable(
+  "suggestions",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    // e.g. "missing_excerpt", "missing_alt", "broken_link"
+    kind: text("kind").notNull(),
+    // What it's about, e.g. "post:12" or "media:4"; one open suggestion each
+    target: text("target").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail").notNull().default(""),
+    // The agent tool call that fixes it; null when a person must decide
+    tool: text("tool"),
+    toolInput: jsonb("tool_input").$type<Record<string, unknown>>(),
+    // Where to look or fix it by hand
+    link: text("link"),
+    status: suggestionStatusEnum("status").notNull().default("pending"),
+    resolvedBy: text("resolved_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [
+    index("suggestions_status_idx").on(t.status, t.createdAt),
+    index("suggestions_target_idx").on(t.kind, t.target),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 
@@ -535,3 +573,4 @@ export type Form = typeof forms.$inferSelect;
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type SubmissionStatus = (typeof submissionStatusEnum.enumValues)[number];
 export type AgentAction = typeof agentActions.$inferSelect;
+export type Suggestion = typeof suggestions.$inferSelect;

@@ -167,6 +167,7 @@ const ai = z.object({
   siteAbout: z.string().trim().max(4000),
   brandVoice: z.string().trim().max(4000),
   aiDisclosure: z.boolean(),
+  inboxEnabled: z.boolean(),
 });
 
 export async function saveAiAction(
@@ -184,6 +185,7 @@ export async function saveAiAction(
         siteAbout: str(formData, "site_about"),
         brandVoice: str(formData, "brand_voice"),
         aiDisclosure: formData.get("ai_disclosure") === "on",
+        inboxEnabled: formData.get("inbox_enabled") === "on",
       }),
     );
     return { message: "Settings saved." };
