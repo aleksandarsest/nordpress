@@ -211,7 +211,7 @@ if [ -n "${NORDPRESS_IMAGE:-}" ]; then
     echo "NORDPRESS_IMAGE=$NORDPRESS_IMAGE" >>.env
 fi
 
-step "Downloading the site (about 400 MB)" docker compose pull --quiet
+step "Downloading the site (about 500 MB)" docker compose pull --quiet
 step "Starting the site" docker compose up -d --remove-orphans
 
 wait_until_up() {
