@@ -67,10 +67,10 @@ EOF
 docker compose up -d
 ```
 
-Open `SITE_URL` and the installer takes it from there. The first start takes about a minute: Nordpress prerenders pages from your database, so it builds on its own server rather than in the image. Later restarts are instant; after an upgrade it builds once more.
+Open `SITE_URL` and the installer takes it from there. Compose runs the published image (`ghcr.io/aleksandarsest/nordpress`), which carries a ready build, so the server never builds Next.js; the first start takes seconds. `docker compose up -d --build` builds from your checkout instead, which takes a few minutes and about 2 GB of memory on the first start.
 
 - **HTTPS:** add `SITE_DOMAIN=example.com` and `COMPOSE_PROFILES=https` to `.env`, and Caddy in `docker-compose.yml` gets the certificate. Or put your own reverse proxy in front of port 3000.
-- **Upgrading:** `git pull && docker compose up -d --build`. Migrations run automatically.
+- **Upgrading:** `git pull && docker compose pull && docker compose up -d` (or run `install.sh` again). Migrations run automatically.
 - **Backups:** the `db` volume (or `docker compose exec db pg_dump -U nordpress nordpress`) and the `uploads` volume.
 - **Optional services:** add `VOYAGE_API_KEY`, `SMTP_URL`/`MAIL_FROM` or the `S3_*` settings to `.env`; `docker-compose.yml` passes them through.
 

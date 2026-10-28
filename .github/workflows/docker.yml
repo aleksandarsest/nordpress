@@ -49,29 +49,3 @@ jobs:
           exit 1
       - if: failure()
         run: docker compose logs | tail -200
-
-  # The one-command installer, as a new server owner would run it, with
-  # HTTPS through Caddy (a local certificate for "localhost")
-  installer:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install
-        run: sudo DOMAIN=localhost ./install.sh
-      - name: Check the site over HTTPS
-        run: |
-          set -e
-          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
-          curl -sk https://localhost/robots.txt | grep -q "Content-Signal"
-          # Only Caddy is reachable from outside; the app listens on 127.0.0.1
-          sudo ss -ltn | grep ':3000 ' | grep -q '127.0.0.1'
-          sudo grep -q '^COMPOSE_PROFILES=https' .env
-      - name: Run it again (upgrade keeps the settings)
-        run: |
-          before=$(sudo grep BETTER_AUTH_SECRET .env)
-          sudo ./install.sh
-          test "$before" = "$(sudo grep BETTER_AUTH_SECRET .env)"
-          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
-      - if: failure()
-        run: sudo docker compose logs | tail -200

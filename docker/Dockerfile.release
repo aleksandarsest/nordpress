@@ -1,0 +1,26 @@
+# The published image (ghcr.io/aleksandarsest/nordpress): production
+# dependencies and a ready build, so a server never builds Next.js itself.
+# Made by .github/workflows/build.yml, which builds the site first and
+# passes it in as the "template" build context.
+FROM node:24-alpine
+
+RUN npm install -g pnpm@12.15.0
+
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --prod && pnpm store prune
+
+COPY . .
+COPY --from=template . /app/.next-template
+RUN find src public scripts next.config.ts package.json pnpm-lock.yaml -type f -print0 \
+  | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1 > .source-hash
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    UPLOADS_DIR=/app/storage/uploads \
+    BACKUP_DIR=/app/storage/backups
+
+EXPOSE 3000
+VOLUME ["/app/.next", "/app/storage/uploads", "/app/storage/backups"]
+ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]

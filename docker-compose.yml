@@ -20,6 +20,9 @@ services:
       retries: 20
 
   app:
+    # The published image has a ready build; `docker compose up --build`
+    # builds from this checkout instead
+    image: ${NORDPRESS_IMAGE:-ghcr.io/aleksandarsest/nordpress:latest}
     build: .
     restart: unless-stopped
     depends_on:

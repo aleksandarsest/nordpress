@@ -14,8 +14,8 @@ that fits.
 
 ## One command
 
-**You need:** a Linux server with at least 1 GB of memory (2 GB is more
-comfortable), and a domain. Any provider works: Hetzner, DigitalOcean,
+**You need:** a Linux server with at least 1 GB of memory and 3 GB of free
+disk, and a domain. Any provider works: Hetzner, DigitalOcean,
 Linode, Vultr, OVH, Scaleway, AWS Lightsail, a machine at home.
 
 1. **Point the domain at the server.** At your domain's DNS provider, add an
@@ -28,18 +28,19 @@ Linode, Vultr, OVH, Scaleway, AWS Lightsail, a machine at home.
 3. **Open your domain** and create your account. The guided start takes it
    from there.
 
-The installer:
+The installer first checks the server: disk, memory, the web ports, and
+whether the domain points there. If something is missing it says what to do
+and changes nothing. Then it:
 
-- asks for the domain, and checks that it points at this server;
 - installs Docker if the server doesn't have it;
-- adds swap on servers with little memory, since building the site needs
-  about 2 GB;
+- adds 1 GB of swap on servers with little memory;
 - makes the passwords and keys, in `/opt/nordpress/.env`;
 - gets an HTTPS certificate for the domain and renews it, with Caddy;
-- starts Nordpress and Postgres, which restart on their own after a reboot.
+- downloads the ready-made site and starts it with Postgres; both start
+  again on their own after a reboot.
 
-The first start takes a few minutes, because the site is built on the
-server.
+It shows each step with a ✓, and keeps the details in
+`/var/log/nordpress-install.log`. A fresh install takes two or three minutes.
 
 **Behind nginx or Apache.** If ports 80 and 443 are already taken, the
 installer offers to skip HTTPS and listen on `127.0.0.1:3000` instead, and
