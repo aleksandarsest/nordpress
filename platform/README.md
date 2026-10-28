@@ -38,7 +38,9 @@ through sudo and nothing else, and it checks every name it's given.
 
 ## Setting up
 
-Run as root on the server. Replace each `PASSWORD` with its own
+`platform/bin/setup-server.sh` does steps 1 to 6 (and is safe to run again):
+`ssh root@server 'bash -s -- aleksa.me' < platform/bin/setup-server.sh`.
+By hand: run as root on the server, and replace each `PASSWORD` with its own
 `openssl rand -hex 24`.
 
 1. **pgvector**, if Postgres doesn't have it yet:
