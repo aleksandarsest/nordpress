@@ -83,7 +83,8 @@ By hand: run as root on the server, and replace each `PASSWORD` with its own
    `RESERVED_SUBDOMAINS`, so nobody can sign up for those names.
 6. **Build and start:** `np-platform template`, then
    `systemctl enable --now nordpress-platform`.
-7. **Certificate** for the domain and every subdomain. Wildcards need a DNS
+7. **Subdomains.** With DNS at DigitalOcean, `platform/bin/enable-subdomains.sh <domain>` does steps 7 and 8 for `*.<domain>`: the DNS record, the wildcard certificate and the nginx block. By hand:
+   **Certificate** for the domain and every subdomain. Wildcards need a DNS
    check, here through DigitalOcean (an API token with write access to the
    domain, in a root-only file):
 
