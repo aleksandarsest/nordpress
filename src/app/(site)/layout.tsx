@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { chatAvailable } from "@/lib/ai/chat";
+import { siteImage } from "@/lib/media";
 import { getMenuAt } from "@/lib/menus";
 import { getSettings } from "@/lib/options";
 import { getPageTree } from "@/lib/posts";
@@ -49,6 +50,7 @@ async function ThemeLayout({ children }: { children: React.ReactNode }) {
       // Fallback menus list the site's own pages, not their translations
       pages={pages.filter((p) => !p.lang)}
       options={options}
+      logo={await siteImage(site.siteLogo)}
     >
       {children}
     </Layout>

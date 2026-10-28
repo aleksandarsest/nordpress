@@ -82,6 +82,12 @@ export type SiteSettings = {
   newsletterSignupAfterPosts: boolean;
   /** Footer of every newsletter: who sends it and a postal address. */
   newsletterFooter: string;
+  /** Media id of the logo shown in the site header. */
+  siteLogo: number | null;
+  /** Media id of the square icon browsers show on tabs and bookmarks. */
+  siteIcon: number | null;
+  /** The dashboard's getting-started list was closed. */
+  checklistDismissed: boolean;
   /** Automatic backups of the whole site. */
   backupSchedule: "off" | "daily" | "weekly";
   /** How many automatic backups to keep. */
@@ -148,6 +154,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   newsletterAutoSend: false,
   newsletterSignupAfterPosts: true,
   newsletterFooter: "",
+  checklistDismissed: false,
+  siteLogo: null,
+  siteIcon: null,
   backupSchedule: "off",
   backupKeep: 7,
   backupLastRun: "",

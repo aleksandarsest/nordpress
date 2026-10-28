@@ -11,6 +11,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { imageSize } from "image-size";
+import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/db";
 import { media } from "@/db/schema";
 import { doAction } from "./plugins";
@@ -149,4 +150,23 @@ export async function countMissingAltText() {
       ]),
     ),
   );
+}
+
+/**
+ * The site's logo or icon, cached with the settings that point at it (a new
+ * logo is a settings change, which clears this).
+ */
+export async function siteImage(id: number | null) {
+  "use cache";
+  cacheTag("options");
+  cacheLife("hours");
+  if (!id) return null;
+  const item = await getMedia(id);
+  if (!item?.mimeType.startsWith("image/")) return null;
+  return {
+    url: mediaUrl(item.path),
+    width: item.width,
+    height: item.height,
+    mimeType: item.mimeType,
+  };
 }

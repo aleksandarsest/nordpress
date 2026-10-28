@@ -276,16 +276,25 @@ The editor's **Video** button embeds YouTube and Vimeo videos from their address
 
 ## Site setup
 
-After installing, Nordpress opens **Set up your site** (also on the dashboard until it's done). Describe the site in your own words, and Claude drafts a complete starter site:
+After installing, Nordpress opens **Set up your site**, and a working site is a couple of minutes away, with or without an AI key:
 
-- name, tagline, and the brand voice for the AI features;
-- a home page, about, services and contact pages with real copy, plus first posts where they fit;
-- a contact form embedded on the Contact page;
-- a main menu, a theme and an accent color.
+1. **What are you building?** A business or service, an online shop, a restaurant or café, a freelancer, a portfolio, a personal site or blog, an organization, or an event or wedding.
+2. **A few questions** for that kind of site: what you do, where, opening hours, phone and email, and a list of services, dishes, products, projects or programme items. Everything except the name is optional. Add your logo here too.
+3. **Review** the pages, menu, form, products, theme and colours, and leave out anything you don't want.
+4. **Create my site.** It goes live straight away.
 
-Everything is shown for review first: edit the identity, drop pages, switch the theme, then **Create my site**.
+Without an AI key, the pages are written from your answers, as finished text with no placeholders to hunt down. A missing answer simply leaves its sentence out. With a key, Claude writes the copy in a voice that fits, using exactly the facts you gave and inventing none (no prices, addresses, hours, names or reviews).
 
-Claude is told never to invent facts such as prices, addresses, opening hours, names, statistics or testimonials. Where the site needs those, it leaves [placeholders] for you to fill in. Without an API key, the same wizard offers templates for a business, blog, portfolio or organization. Setup only adds content; if any step fails, everything it created is removed again.
+Each kind of site gets what it needs:
+
+- **Restaurants** get a menu page, opening hours and a table booking form.
+- **Shops** get products: the ones with a price go on sale, the rest wait as drafts. They also get a shipping and returns page.
+- **Freelancers** get a project inquiry form with a budget question.
+- **Events** get a programme and an RSVP form.
+
+Setup only adds content; if any step fails, everything it created is removed again.
+
+Afterwards, the dashboard shows **Getting started**: publish a first post, protect your account, turn on email, schedule backups and use your own domain, each ticked off as it's done. The logo and the browser icon can be changed any time under **Settings → General**.
 
 ## Admin assistant
 

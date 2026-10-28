@@ -94,7 +94,12 @@ export async function saveGeneralAction(
       if (code !== defaultLanguage && !languages.includes(code))
         languages.push(code);
     }
-    await save({ defaultLanguage, languages: languages.slice(0, 20) });
+    await save({
+      defaultLanguage,
+      languages: languages.slice(0, 20),
+      siteLogo: optionalId(formData, "site_logo"),
+      siteIcon: optionalId(formData, "site_icon"),
+    });
     return { message: "Settings saved." };
   } catch (error) {
     return formError(error);
@@ -229,4 +234,8 @@ export async function rebuildIndexAction() {
   // Can take a while on large sites; the settings page shows progress
   after(() => rebuildIndex());
   refresh();
+}
+
+export async function dismissChecklistAction() {
+  await save({ checklistDismissed: true });
 }

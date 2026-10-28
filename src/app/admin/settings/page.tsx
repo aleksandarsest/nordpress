@@ -4,9 +4,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ROLE_LABELS } from "@/lib/capabilities";
+import { siteImage } from "@/lib/media";
 import { getSettings } from "@/lib/options";
 import { requireViewer } from "@/lib/session";
 import { ROLES } from "@/lib/users";
+import { ImageSetting } from "../_components/image-setting";
 import { saveGeneralAction } from "./actions";
 
 export const metadata: Metadata = { title: "General Settings" };
@@ -22,6 +24,10 @@ const DATE_FORMATS = [
 export default async function GeneralSettingsPage() {
   await requireViewer("manage_options");
   const s = await getSettings();
+  const [logo, icon] = await Promise.all([
+    siteImage(s.siteLogo),
+    siteImage(s.siteIcon),
+  ]);
   const zones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
 
   return (
@@ -33,6 +39,34 @@ export default async function GeneralSettingsPage() {
         <div className="grid gap-2">
           <Label htmlFor="title">Site Title</Label>
           <Input id="title" name="title" defaultValue={s.title} required />
+        </div>
+        <div className="grid gap-2">
+          <span className="font-medium text-sm">Logo</span>
+          <ImageSetting
+            name="site_logo"
+            title="Site logo"
+            initial={
+              logo && s.siteLogo ? { id: s.siteLogo, url: logo.url } : null
+            }
+          />
+          <span className="text-muted-foreground text-xs">
+            Shown in the site header instead of the title.
+          </span>
+        </div>
+        <div className="grid gap-2">
+          <span className="font-medium text-sm">Site icon</span>
+          <ImageSetting
+            name="site_icon"
+            title="Site icon"
+            className="size-10"
+            initial={
+              icon && s.siteIcon ? { id: s.siteIcon, url: icon.url } : null
+            }
+          />
+          <span className="text-muted-foreground text-xs">
+            The small square image on browser tabs and bookmarks. At least
+            512×512 pixels works best.
+          </span>
         </div>
         <div className="grid gap-2">
           <Label htmlFor="tagline">Tagline</Label>

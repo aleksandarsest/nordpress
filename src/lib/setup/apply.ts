@@ -1,7 +1,7 @@
 import "server-only";
-import { and, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { posts } from "@/db/schema";
+import { posts, products } from "@/db/schema";
 import { htmlToDoc } from "../content";
 import { createForm, deleteForm } from "../forms";
 import { DEFAULT_FORM_SETTINGS } from "../forms/fields";
@@ -20,6 +20,8 @@ import {
   trashPost,
 } from "../posts";
 import type { Viewer } from "../session";
+import { saveProduct } from "../shop";
+import { parseMoney } from "../shop/money";
 import { getThemeOptions, saveThemeOptions } from "../themes";
 import type { SitePlan } from "./plan";
 
@@ -31,7 +33,12 @@ const SAMPLE_SLUGS = ["hello-world", "sample-page"];
 export async function applySitePlan(
   viewer: Viewer,
   plan: SitePlan,
-  options: { trashSamples: boolean; aiDrafted: boolean },
+  options: {
+    trashSamples: boolean;
+    aiDrafted: boolean;
+    /** An uploaded logo for the site header. */
+    logoId?: number | null;
+  },
 ) {
   const settings = await getSettings();
   const nordOptions = await getThemeOptions("nord");
@@ -42,6 +49,7 @@ export async function applySitePlan(
     trashed: [] as number[],
     form: null as number | null,
     menu: null as number | null,
+    products: [] as number[],
   };
 
   try {
@@ -112,6 +120,20 @@ export async function applySitePlan(
       made.posts.push(saved.id);
     }
 
+    // Products go live only with a price; the rest wait as drafts
+    for (const product of plan.products) {
+      const price = product.price
+        ? parseMoney(product.price, settings.shopCurrency)
+        : null;
+      const saved = await saveProduct({
+        name: product.name,
+        summary: product.summary,
+        priceCents: price ?? 0,
+        status: price !== null && price > 0 ? "active" : "draft",
+      });
+      made.products.push(saved.id);
+    }
+
     // A static home page needs somewhere for posts to live
     const home =
       plan.homepage === "page"
@@ -139,10 +161,18 @@ export async function applySitePlan(
     if (menuPages.length) {
       const menu = await createMenu("Main menu");
       made.menu = menu.id;
-      await addMenuItems(
-        menu.id,
-        menuPages.map((p) => ({ type: "post" as const, objectId: p.id })),
-      );
+      await addMenuItems(menu.id, [
+        ...menuPages
+          .filter((p) => p.role !== "contact")
+          .map((p) => ({ type: "post" as const, objectId: p.id })),
+        ...(plan.products.length
+          ? [{ type: "custom" as const, label: "Shop", url: "/shop" }]
+          : []),
+        // The contact page stays last, after the shop
+        ...menuPages
+          .filter((p) => p.role === "contact")
+          .map((p) => ({ type: "post" as const, objectId: p.id })),
+      ]);
       await setMenuLocations(menu.id, ["primary"]);
     }
 
@@ -158,6 +188,7 @@ export async function applySitePlan(
       showOnFront: home ? "page" : "posts",
       pageOnFront: home ? home.id : null,
       pageForPosts: blogPage,
+      ...(options.logoId && { siteLogo: options.logoId }),
       setupCompleted: true,
     });
 
@@ -183,6 +214,8 @@ export async function applySitePlan(
       await undo(() => deleteMenu(menu));
       await undo(() => saveSettings({ menuLocations: settings.menuLocations }));
     }
+    for (const id of made.products)
+      await undo(() => db.delete(products).where(eq(products.id, id)));
     for (const id of made.posts.reverse())
       await undo(() => deletePostPermanently(viewer, id));
     if (made.form) {

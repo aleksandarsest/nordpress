@@ -87,7 +87,14 @@ function NavMenu({
   );
 }
 
-function Layout({ site, menus, pages, options, children }: ThemeLayoutProps) {
+function Layout({
+  site,
+  menus,
+  pages,
+  options,
+  logo,
+  children,
+}: ThemeLayoutProps) {
   const footer = menus.footer ?? [];
   return (
     <>
@@ -95,7 +102,18 @@ function Layout({ site, menus, pages, options, children }: ThemeLayoutProps) {
         <div className="mx-auto flex max-w-3xl flex-wrap items-end justify-between gap-4 px-4 py-6">
           <div>
             <Link href="/" className="font-semibold text-xl tracking-tight">
-              {site.title}
+              {logo ? (
+                // biome-ignore lint/performance/noImgElement: the owner's own upload, any format
+                <img
+                  src={logo.url}
+                  alt={site.title}
+                  width={logo.width ?? undefined}
+                  height={logo.height ?? undefined}
+                  className="h-10 w-auto max-w-56 object-contain"
+                />
+              ) : (
+                site.title
+              )}
             </Link>
             {site.tagline && options.showTagline !== false && (
               <p className="text-muted-foreground text-sm">{site.tagline}</p>

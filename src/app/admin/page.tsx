@@ -1,9 +1,9 @@
 import { formatDistanceToNow } from "date-fns";
+import { Circle, CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { after } from "next/server";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,11 +11,13 @@ import { runScheduledBackupIfDue } from "@/lib/backup";
 import { hasCap } from "@/lib/capabilities";
 import { countPendingComments } from "@/lib/comments";
 import { runSiteChecksIfDue } from "@/lib/inbox";
+import { onboardingSteps } from "@/lib/onboarding";
 import { getSettings } from "@/lib/options";
 import { dashboardStats, recentDrafts } from "@/lib/posts";
 import { requireViewer } from "@/lib/session";
 import { first } from "./_components/screen";
 import { quickDraft } from "./posts/actions";
+import { dismissChecklistAction } from "./settings/actions";
 
 export default async function DashboardPage({
   searchParams,
@@ -36,8 +38,12 @@ export default async function DashboardPage({
         console.error("[backup] scheduled backup failed", error),
       );
     });
-  const setupCard =
-    hasCap(viewer, "manage_options") && !(await getSettings()).setupCompleted;
+  const settings = await getSettings();
+  const steps =
+    hasCap(viewer, "manage_options") && !settings.checklistDismissed
+      ? await onboardingSteps(settings, viewer.id)
+      : [];
+  const doneCount = steps.filter((s) => s.done).length;
   const pendingComments = hasCap(viewer, "moderate_comments")
     ? await countPendingComments()
     : null;
@@ -46,21 +52,59 @@ export default async function DashboardPage({
     <div className="grid gap-6">
       <h1 className="font-semibold text-2xl tracking-tight">Dashboard</h1>
 
-      {setupCard && (
+      {steps.length > 0 && doneCount < steps.length && (
         <Card className="border-primary/40 bg-primary/5">
-          <CardHeader>
-            <CardTitle>Set up your site in a minute</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle>Getting started</CardTitle>
+            <span className="text-muted-foreground text-sm">
+              {doneCount} of {steps.length} done
+            </span>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
-            <p className="text-muted-foreground">
-              Describe your site and get pages with real copy, a menu, a contact
-              form and a theme, ready to review.
-            </p>
-            <div>
-              <Link href="/admin/setup" className={buttonVariants()}>
-                Start setup
-              </Link>
-            </div>
+            <ul className="grid gap-2">
+              {steps.map((step) => (
+                <li key={step.key}>
+                  <Link
+                    href={step.href}
+                    className="flex items-start gap-3 rounded-lg p-2 hover:bg-background"
+                    {...(step.href.startsWith("http") && {
+                      target: "_blank",
+                      rel: "noreferrer",
+                    })}
+                  >
+                    {step.done ? (
+                      <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                    ) : (
+                      <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="grid">
+                      <span
+                        className={
+                          step.done
+                            ? "text-muted-foreground line-through"
+                            : "font-medium"
+                        }
+                      >
+                        {step.title}
+                      </span>
+                      {!step.done && (
+                        <span className="text-muted-foreground text-xs">
+                          {step.detail}
+                        </span>
+                      )}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <form action={dismissChecklistAction}>
+              <button
+                type="submit"
+                className="text-muted-foreground text-xs hover:underline"
+              >
+                Hide this list
+              </button>
+            </form>
           </CardContent>
         </Card>
       )}

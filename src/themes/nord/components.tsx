@@ -79,7 +79,14 @@ function PrimaryMenu({ items }: { items: ResolvedMenuItem[] }) {
   );
 }
 
-function Layout({ site, menus, pages, options, children }: ThemeLayoutProps) {
+function Layout({
+  site,
+  menus,
+  pages,
+  options,
+  logo,
+  children,
+}: ThemeLayoutProps) {
   const primary =
     menus.primary ??
     pages
@@ -100,13 +107,26 @@ function Layout({ site, menus, pages, options, children }: ThemeLayoutProps) {
       <header className="bg-[#2E3440]">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-5 py-4">
           <Link href="/" className="flex items-center gap-3">
-            <span
-              aria-hidden
-              className="size-3 rotate-45 rounded-[3px] bg-[var(--nord-accent)]"
-            />
-            <span className="font-semibold text-[#ECEFF4] text-lg tracking-tight">
-              {site.title}
-            </span>
+            {logo ? (
+              // biome-ignore lint/performance/noImgElement: the owner's own upload, any format
+              <img
+                src={logo.url}
+                alt={site.title}
+                width={logo.width ?? undefined}
+                height={logo.height ?? undefined}
+                className="h-9 w-auto max-w-48 object-contain"
+              />
+            ) : (
+              <>
+                <span
+                  aria-hidden
+                  className="size-3 rotate-45 rounded-[3px] bg-[var(--nord-accent)]"
+                />
+                <span className="font-semibold text-[#ECEFF4] text-lg tracking-tight">
+                  {site.title}
+                </span>
+              </>
+            )}
           </Link>
           <PrimaryMenu items={primary} />
         </div>

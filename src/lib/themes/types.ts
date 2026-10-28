@@ -16,7 +16,15 @@ export type ThemeLayoutProps = {
   /** Published top-level pages, for a fallback when no menu is assigned. */
   pages: PageNode[];
   options: ThemeOptions;
+  /** The site's logo, when one is set; themes show it instead of the title. */
+  logo: SiteLogo | null;
   children: ReactNode;
+};
+
+export type SiteLogo = {
+  url: string;
+  width: number | null;
+  height: number | null;
 };
 
 export type ThemeSingleProps = {

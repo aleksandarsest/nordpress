@@ -10,31 +10,56 @@ import { SETTINGS_TAG, saveSettings } from "@/lib/options";
 import { POSTS_TAG } from "@/lib/posts";
 import { assertCap } from "@/lib/session";
 import { applySitePlan } from "@/lib/setup/apply";
-import { SITE_KINDS, type SitePlan, sitePlanSchema } from "@/lib/setup/plan";
+import {
+  SITE_KINDS,
+  type SiteAnswers,
+  type SitePlan,
+  sitePlanSchema,
+} from "@/lib/setup/plan";
 import { templatePlan } from "@/lib/setup/templates";
+import { SHOP_TAG } from "@/lib/shop";
 import { TERMS_TAG } from "@/lib/terms";
 
 const kind = z.enum(Object.keys(SITE_KINDS) as [keyof typeof SITE_KINDS]);
 
+const text = (max: number) => z.string().trim().max(max).default("");
+const answersSchema = z.object({
+  title: text(200),
+  offer: text(300),
+  about: text(2000),
+  location: text(300),
+  email: z
+    .union([z.literal(""), z.email("That email address isn't valid.")])
+    .default(""),
+  phone: text(50),
+  hours: text(1000),
+  date: text(100),
+  items: z.array(z.string().trim().max(200)).max(12).default([]),
+});
+
 export async function draftPlanAction(input: {
   mode: "ai" | "template";
   kind: string;
-  title: string;
+  answers: SiteAnswers;
   description: string;
 }): Promise<{ plan?: SitePlan; error?: string }> {
   try {
     const viewer = await assertCap("manage_options");
     const k = kind.parse(input.kind);
-    const title = input.title.trim().slice(0, 200) || "My Site";
-    if (input.mode === "template") return { plan: templatePlan(k, title) };
+    const answers = answersSchema.parse(input.answers);
+    answers.title ||= "My Site";
+    answers.items = answers.items.filter(Boolean);
+    if (input.mode === "template") return { plan: templatePlan(k, answers) };
     return {
       plan: await draftSitePlan(
-        { kind: k, title, description: input.description },
+        { kind: k, answers, description: input.description.slice(0, 4000) },
         viewer.id,
       ),
     };
   } catch (error) {
     if (error instanceof AiError) return { error: error.message };
+    if (error instanceof z.ZodError)
+      return { error: error.issues.map((i) => i.message).join(" ") };
     console.error("[setup] draft failed", error);
     return { error: "Couldn't draft the site. Please try again." };
   }
@@ -42,7 +67,11 @@ export async function draftPlanAction(input: {
 
 export async function applyPlanAction(
   plan: SitePlan,
-  options: { trashSamples: boolean; aiDrafted: boolean },
+  options: {
+    trashSamples: boolean;
+    aiDrafted: boolean;
+    logoId: number | null;
+  },
 ): Promise<{
   result?: Awaited<ReturnType<typeof applySitePlan>>;
   error?: string;
@@ -56,6 +85,7 @@ export async function applyPlanAction(
       options,
     );
     for (const tag of [
+      SHOP_TAG,
       POSTS_TAG,
       SETTINGS_TAG,
       MENUS_TAG,

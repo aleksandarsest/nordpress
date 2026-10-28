@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { siteImage } from "@/lib/media";
 import { getSettings } from "@/lib/options";
 import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
@@ -17,7 +18,14 @@ const geistMono = Geist_Mono({
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
+  const icon = await siteImage(settings.siteIcon);
   return {
+    ...(icon && {
+      icons: {
+        icon: [{ url: icon.url, type: icon.mimeType }],
+        apple: icon.url,
+      },
+    }),
     // Makes relative image and page addresses in metadata absolute
     metadataBase: new URL(siteUrl("/")),
     title: { default: settings.title, template: `%s – ${settings.title}` },
