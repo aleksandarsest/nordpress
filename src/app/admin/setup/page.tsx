@@ -28,6 +28,7 @@ export default async function SetupPage() {
         ai={settings.aiEnabled && aiConfigured()}
         fresh={fresh}
         setUpBefore={settings.setupCompleted}
+        importer={settings.activePlugins.includes("wordpress-importer")}
       />
     </div>
   );

@@ -84,23 +84,23 @@ export function ImportForm() {
         }}
       >
         <div className="grid gap-2">
-          <Label htmlFor="wxr-site">Your WordPress site's address</Label>
+          <Label htmlFor="wxr-site">Your current site's address</Label>
           <input
             id="wxr-site"
             name="site_url"
             type="url"
-            placeholder="https://myblog.com"
+            placeholder="https://www.example.com"
             disabled={running}
             className="h-9 rounded-lg border bg-transparent px-3"
           />
           <span className="text-muted-foreground text-xs">
-            Imports everything that's public: posts, pages, categories, tags,
-            media and approved comments. No plugin or export needed; the site
-            just has to be online.
+            WordPress, Wix, Squarespace, Webflow or any other site. Copies
+            what's public; nothing to install on the old site, it just has to be
+            online.
           </span>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="wxr-file">Or an export file (.xml)</Label>
+          <Label htmlFor="wxr-file">Or a WordPress export file (.xml)</Label>
           <input
             id="wxr-file"
             name="file"
@@ -144,11 +144,7 @@ export function ImportForm() {
         </p>
         <div>
           <Button type="submit" disabled={uploading || running}>
-            {uploading
-              ? "Uploading…"
-              : running
-                ? "Import running…"
-                : "Upload and import"}
+            {uploading ? "Uploading…" : running ? "Import running…" : "Start"}
           </Button>
         </div>
       </form>

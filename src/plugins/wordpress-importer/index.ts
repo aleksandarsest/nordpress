@@ -5,10 +5,10 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
 export default definePlugin({
   slug: "wordpress-importer",
-  name: "WordPress Importer",
-  version: "1.0.0",
+  name: "Site Importer",
+  version: "1.1.0",
   description:
-    "Imports posts, pages, comments, categories, tags, authors and media from a WordPress export file (Tools → Export in WordPress).",
+    "Copies an existing website: WordPress (through its API or an export file) or any other site, such as Wix, Squarespace or Webflow, page by page. Brings over pages, posts, images and the menu, and redirects the old addresses.",
   author: "Nordpress",
   settings: [
     {
@@ -22,7 +22,7 @@ export default definePlugin({
   adminPages: [
     {
       path: "import",
-      title: "Import from WordPress",
+      title: "Copy a site",
       cap: "manage_options",
       component: ImportScreen,
     },

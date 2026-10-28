@@ -481,9 +481,16 @@ pnpm new:theme sunrise "Sunrise" --from nord      # copy of Nord to make your ow
 
 Both register themselves; activate the plugin under **Plugins** or switch to the theme under **Appearance → Themes**. [`AGENTS.md`](AGENTS.md) (loaded automatically by Claude Code through `CLAUDE.md`) explains the architecture, the hooks and the rules a change must follow, so agents get it right the first time.
 
-## Importing from WordPress
+## Copying an existing site
 
-Activate the **WordPress Importer** plugin, then open **Tools → Import from WordPress**. There are two ways in:
+New sites come with the **Site Importer**: **Tools → Copy a site**, also linked from the setup wizard as "Already have a website? Copy it instead". Enter the address of the site you have now.
+
+- **Any website** (Wix, Squarespace, Webflow, Jimdo, hand-made): Nordpress finds the pages through the sitemap, the menu and links (up to 40). On each page it keeps the main content and leaves out the header, menu, footer, cookie banners and share buttons. Pages that look like blog posts or news (dated, `/blog/…`) become posts with their original date. Images are downloaded into the media library, links between pages are kept, and the menu is recreated in the header. The home page becomes your front page, the logo and brand color are reused in your design, and the sample post and page go to the trash. The old site's scripts never run.
+- **Old links keep working:** every copied page's old address redirects to its new one (see **Tools → Redirects**), so when your domain moves here, bookmarks and search results still land in the right place. This applies to WordPress imports too.
+
+### From WordPress
+
+A WordPress site is read through its REST API instead, which brings more. If its API is turned off, it's copied page by page like any other site. There are two ways in:
 
 - **From the live site:** enter its address. Nordpress reads everything public through the WordPress REST API (posts, pages, categories, tags, media and approved comments), with nothing to install on the old site. Authors come across by name; emails aren't public, so their posts go to you.
 - **From an export file:** in the old dashboard, use **Tools → Export → All content** and upload the file. This also brings drafts, private posts, menus and author emails.

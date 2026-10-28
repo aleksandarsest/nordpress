@@ -15,6 +15,7 @@
       "!build",
       "!src/components/ui",
       "!src/db/migrations",
+      "!**/fixtures",
       "!pnpm-lock.yaml",
       "!pnpm-workspace.yaml"
     ]

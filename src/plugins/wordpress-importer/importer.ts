@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { db } from "@/db";
 import {
@@ -26,17 +26,26 @@ import {
 } from "@/lib/media";
 import { createMenu, isAllowedMenuUrl, MENUS_TAG } from "@/lib/menus";
 import { assertPublicUrl } from "@/lib/net";
-import { SETTINGS_TAG } from "@/lib/options";
-import { POSTS_TAG, type SaveIntent, savePost } from "@/lib/posts";
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+  SETTINGS_TAG,
+  saveSettings,
+} from "@/lib/options";
+import { postPath } from "@/lib/permalinks";
+import { POSTS_TAG, type SaveIntent, savePost, trashPost } from "@/lib/posts";
+import { RedirectRuleError, saveRedirect } from "@/lib/redirects";
 import type { Viewer } from "@/lib/session";
 import { createTerm, TERMS_TAG } from "@/lib/terms";
-import { fetchLiveSite, liveToWxr } from "./live";
+import { type CrawlResult, crawlSite } from "./crawl";
+import { fetchLiveSite, LiveImportError, liveToWxr } from "./live";
 import {
   autop,
   cleanContent,
   menusFromWxr,
   parentsFirst,
   parseWxr,
+  type Wxr,
   type WxrItem,
   type WxrMenu,
 } from "./wxr";
@@ -152,22 +161,31 @@ async function runImport(
   options: ImportOptions,
   job: ImportJob,
 ) {
-  const wxr =
-    "xml" in source
-      ? parseWxr(source.xml)
-      : liveToWxr(
-          await fetchLiveSite(
-            source.siteUrl,
-            // The same network guard as media downloads
-            (url) =>
-              options.allowPrivateHosts
-                ? Promise.resolve()
-                : assertPublicUrl(url),
-            (message) => {
-              job.phase = message;
-            },
-          ),
-        );
+  // The same network guard as media downloads
+  const guard = (url: string) =>
+    options.allowPrivateHosts ? Promise.resolve() : assertPublicUrl(url);
+  const progress = (message: string) => {
+    job.phase = message;
+  };
+  // A WordPress site is read through its REST API; any other site (or one
+  // with the API turned off) is copied page by page
+  let crawled: CrawlResult | null = null;
+  let wxr: Wxr;
+  if ("xml" in source) wxr = parseWxr(source.xml);
+  else {
+    try {
+      wxr = liveToWxr(await fetchLiveSite(source.siteUrl, guard, progress));
+    } catch (error) {
+      if (!(error instanceof LiveImportError) && !(error instanceof TypeError))
+        throw error;
+      note(
+        job,
+        "It isn't WordPress (or its API is off), so its pages are copied one by one.",
+      );
+      crawled = await crawlSite(source.siteUrl, guard, progress);
+      wxr = crawled.wxr;
+    }
+  }
   job.source = wxr.site.title || wxr.site.link;
   const items = wxr.items.filter((i) => IMPORTABLE_TYPES.has(i.type));
   const attachments = options.downloadMedia
@@ -291,7 +309,15 @@ async function runImport(
     );
   }
 
-  // 6. Caches and search index
+  // 6. Old addresses keep working: each imported page's old path
+  // redirects to its new one
+  job.phase = "Adding redirects";
+  await redirectOldLinks(wxr, items, postIds, job);
+
+  // 7. A copied site gets its home page, menu, logo and color back
+  if (crawled) await finishCopiedSite(crawled, postIds, actor, options, job);
+
+  // 8. Caches and search index
   job.phase = "Finishing up";
   for (const tag of [
     POSTS_TAG,
@@ -663,4 +689,157 @@ async function importMenus(
         ". Assign it to a location under Appearance → Menus.",
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// After the import
+// ---------------------------------------------------------------------------
+
+async function redirectOldLinks(
+  wxr: Wxr,
+  items: WxrItem[],
+  postIds: Map<number, number>,
+  job: ImportJob,
+) {
+  let base: URL;
+  try {
+    base = new URL(wxr.site.baseSiteUrl || wxr.site.link);
+  } catch {
+    return;
+  }
+  const settings = await getSettings();
+  const ids = [...postIds.values()];
+  if (ids.length === 0) return;
+  const rows = await db.select().from(posts).where(inArray(posts.id, ids));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  // Page paths from the imported rows themselves; cached trees are stale here
+  const pagePath = (id: number, seen = new Set<number>()): string => {
+    const row = byId.get(id);
+    if (!row || seen.has(id)) return "";
+    seen.add(id);
+    const parent = row.parentId ? pagePath(row.parentId, seen) : "";
+    return parent ? `${parent}/${row.slug}` : row.slug;
+  };
+  let added = 0;
+  for (const item of items) {
+    const id = postIds.get(item.id);
+    const row = id ? byId.get(id) : undefined;
+    if (row?.status !== "publish" || !item.link) continue;
+    let old: URL;
+    try {
+      old = new URL(item.link);
+    } catch {
+      continue;
+    }
+    if (
+      old.hostname.replace(/^www\./, "") !== base.hostname.replace(/^www\./, "")
+    )
+      continue;
+    const from = old.pathname.replace(/\/+$/, "") || "/";
+    const to = postPath(
+      row,
+      settings.permalinkStructure,
+      row.type === "page" ? pagePath(row.id) : undefined,
+    );
+    if (from === "/" || from === to) continue;
+    try {
+      await saveRedirect({ source: from, target: to, origin: "import" });
+      added++;
+    } catch (error) {
+      if (!(error instanceof RedirectRuleError)) throw error;
+    }
+  }
+  if (added)
+    note(
+      job,
+      `Added ${added} redirect${added === 1 ? "" : "s"} from the old addresses, so existing links and search results keep working once your domain points here.`,
+    );
+}
+
+async function finishCopiedSite(
+  crawled: CrawlResult,
+  postIds: Map<number, number>,
+  actor: Viewer,
+  options: ImportOptions,
+  job: ImportJob,
+) {
+  const settings = await getSettings();
+  const changes: Parameters<typeof saveSettings>[0] = {};
+  const home = crawled.homeItemId ? postIds.get(crawled.homeItemId) : undefined;
+  if (home && !(settings.showOnFront === "page" && settings.pageOnFront)) {
+    changes.showOnFront = "page";
+    changes.pageOnFront = home;
+    note(job, "Made the copied home page your front page.");
+  }
+  // The imported menu goes in the header when nothing is there yet
+  const [menu] = await db
+    .select({ id: menus.id })
+    .from(menus)
+    .where(eq(menus.name, "Main menu"));
+  if (menu && !settings.menuLocations.primary) {
+    changes.menuLocations = { ...settings.menuLocations, primary: menu.id };
+  }
+  if (crawled.logo && !settings.siteLogo && options.downloadMedia) {
+    try {
+      const saved = await importAttachment(
+        { ...emptyItem(), title: "Logo", attachmentUrl: crawled.logo },
+        actor.id,
+        options,
+        job,
+      );
+      if (saved) changes.siteLogo = saved.id;
+    } catch (error) {
+      note(job, `Couldn't copy the logo: ${(error as Error).message}`);
+    }
+  }
+  if (crawled.themeColor && !settings.siteLogo) {
+    changes.design = {
+      ...settings.design,
+      preset: "custom",
+      brand: crawled.themeColor,
+    };
+    note(job, "Used the old site's brand color in your design.");
+  }
+  if (crawled.description && settings.tagline === DEFAULT_SETTINGS.tagline)
+    changes.tagline = crawled.description.slice(0, 200);
+  // The sample post and page make no sense on a copied site
+  const samples = await db
+    .select({ id: posts.id })
+    .from(posts)
+    .where(
+      and(
+        inArray(posts.slug, ["hello-world", "sample-page"]),
+        eq(posts.status, "publish"),
+      ),
+    );
+  for (const { id } of samples) await trashPost(actor, id);
+  if (samples.length) note(job, "Moved the sample post and page to the trash.");
+  if (Object.keys(changes).length) await saveSettings(changes);
+}
+
+function emptyItem(): WxrItem {
+  return {
+    id: 0,
+    type: "attachment",
+    status: "inherit",
+    title: "",
+    slug: "",
+    guid: "",
+    link: "",
+    creator: "",
+    content: "",
+    excerpt: "",
+    dateGmt: null,
+    parentId: 0,
+    menuOrder: 0,
+    commentStatus: "closed",
+    password: "",
+    sticky: false,
+    attachmentUrl: "",
+    categories: [],
+    tags: [],
+    navMenus: [],
+    meta: {},
+    comments: [],
+  };
 }

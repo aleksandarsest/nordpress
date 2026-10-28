@@ -74,11 +74,14 @@ export function SetupWizard({
   ai,
   fresh,
   setUpBefore,
+  importer,
 }: {
   siteTitle: string;
   ai: boolean;
   fresh: boolean;
   setUpBefore: boolean;
+  /** Whether the site importer is on, for copying an existing site. */
+  importer: boolean;
 }) {
   // Read once: finishing setup flips the setting while this page is open
   const [wasSetUp] = useState(setUpBefore);
@@ -233,15 +236,25 @@ export function SetupWizard({
               );
             })}
           </div>
-          <form action={dismissSetupAction}>
-            <Button
-              type="submit"
-              variant="link"
-              className="h-auto px-0 text-muted-foreground"
-            >
-              Skip setup, I'll build it myself
-            </Button>
-          </form>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {importer && (
+              <Link
+                href="/admin/tools/wordpress-importer/import"
+                className="font-medium text-sm hover:underline"
+              >
+                Already have a website? Copy it instead →
+              </Link>
+            )}
+            <form action={dismissSetupAction}>
+              <Button
+                type="submit"
+                variant="link"
+                className="h-auto px-0 text-muted-foreground"
+              >
+                Skip setup, I'll build it myself
+              </Button>
+            </form>
+          </div>
         </div>
       )}
 

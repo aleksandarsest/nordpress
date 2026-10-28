@@ -166,7 +166,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   backupLastRun: "",
   mcpEnabled: true,
   agentsCanPublish: false,
-  activePlugins: [],
+  // The site importer, so a new site can copy an old one from the start
+  activePlugins: ["wordpress-importer"],
   menuLocations: {},
   theme: "studio",
   setupCompleted: false,

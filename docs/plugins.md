@@ -106,4 +106,4 @@ The screen lives at `/admin/tools/<slug>/<path>` and appears under **Tools** whi
 - `reading-time`: a filter, settings and a REST route.
 - `webhooks`: actions and deferred HTTP calls.
 - `comment-blocklist`: the `comment.status` filter.
-- `wordpress-importer`: an admin screen and a long-running job.
+- `wordpress-importer` (the Site Importer): an admin screen and a long-running job; it copies WordPress through its API or an export file, and any other site page by page.

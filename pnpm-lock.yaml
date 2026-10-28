@@ -220,6 +220,9 @@ importers:
       fast-xml-parser:
         specifier: 5.11.2
         version: 5.11.2
+      happy-dom:
+        specifier: 20.14.6
+        version: 20.14.6
       image-size:
         specifier: ^2.0.4
         version: 2.0.4
