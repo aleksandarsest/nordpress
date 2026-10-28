@@ -8,6 +8,7 @@ export const AI_SOURCES = {
   agent: "an AI agent",
   "site-setup": "AI site setup",
   translation: "AI translation",
+  "page-draft": "AI page drafting",
 } as const;
 
 export type AiSource = keyof typeof AI_SOURCES;

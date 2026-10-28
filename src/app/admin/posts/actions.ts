@@ -4,6 +4,8 @@ import type { JSONContent } from "@tiptap/core";
 import { refresh, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { queueIndex } from "@/lib/ai/embeddings";
+import { draftPage } from "@/lib/ai/page";
+import { htmlToDoc } from "@/lib/content";
 import { type FormState, formError, optionalId, str } from "@/lib/form";
 import { getSettings } from "@/lib/options";
 import {
@@ -18,7 +20,7 @@ import {
 } from "@/lib/posts";
 import { createPreview } from "@/lib/previews";
 import { cleanSeo } from "@/lib/seo";
-import { getViewer, PermissionError } from "@/lib/session";
+import { assertCap, getViewer, PermissionError } from "@/lib/session";
 import { TERMS_TAG } from "@/lib/terms";
 import { createTranslation } from "@/lib/translations";
 
@@ -234,4 +236,29 @@ export async function createTranslationAction(
       error: formError(error)?.error ?? "Couldn't start the translation.",
     };
   }
+}
+
+// A new page drafted by AI from a description; it opens in the editor as a
+// draft, so nothing goes live before the owner has read it.
+export async function createPageWithAiAction(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  let id: number;
+  try {
+    const viewer = await assertCap("edit_pages");
+    const draft = await draftPage(str(formData, "description"), viewer.id);
+    ({ id } = await savePost(viewer, {
+      type: "page",
+      intent: "draft",
+      title: draft.title,
+      content: htmlToDoc(draft.html),
+      aiSource: "page-draft",
+      seo: { description: draft.description },
+    }));
+  } catch (error) {
+    return formError(error);
+  }
+  invalidate();
+  redirect(`/admin/posts/${id}`);
 }

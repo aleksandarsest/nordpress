@@ -19,6 +19,7 @@ export const FEATURE_LABELS: Record<string, string> = {
   alt_text: "Image alt text",
   chat: "Site chat",
   form_draft: "Form drafting",
+  page_draft: "Page drafting",
   assistant: "Admin assistant",
   site_setup: "Site setup",
   inbox: "AI inbox checks",
