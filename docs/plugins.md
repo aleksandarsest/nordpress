@@ -44,6 +44,7 @@ Actions run after something happened; filters change a value and return it.
 | `comment.created`              | the comment                                                                                                          |
 | `media.uploaded`               | the media item                                                                                                       |
 | `form.submitted`               | `{ form, submission }`, after spam triage; spam never arrives                                                        |
+| `newsletter.subscribed`        | `{ id, email, name }`, once the subscriber has confirmed                                                             |
 | `user.created`                 | `{ id, name, email, role }`                                                                                          |
 
 | Filter             | Value, context                                       |

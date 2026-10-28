@@ -14,6 +14,7 @@ import { postJsonLd } from "@/lib/structured-data";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
 import type { SinglePost } from "@/lib/themes/types";
 import { getTranslations } from "@/lib/translations";
+import { NewsletterSignup } from "../newsletter/signup-form";
 import { Comments } from "./comments";
 import { SiteForm } from "./site-form";
 
@@ -71,6 +72,16 @@ export async function SingleView({
               ) : (
                 <PostBody post={post} preview={preview} />
               )}
+              {!preview &&
+                post.type === "post" &&
+                site.newsletterEnabled &&
+                site.newsletterSignupAfterPosts && (
+                  <NewsletterSignup
+                    title={`Get new posts from ${site.title}`}
+                    description="By email, when they're published. Unsubscribe anytime."
+                    compact
+                  />
+                )}
             </>
           }
           comments={

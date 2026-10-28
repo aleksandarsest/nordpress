@@ -1,8 +1,10 @@
 import "server-only";
 import { aiConfigured } from "@/lib/ai/client";
 import { type Actor, canOnPost, hasCap } from "@/lib/capabilities";
+import { formatInZone } from "@/lib/dates";
 import { listForms } from "@/lib/forms";
 import { getMedia, mediaUrl } from "@/lib/media";
+import { newsletterForPost, subscriberCounts } from "@/lib/newsletter";
 import { getSettings } from "@/lib/options";
 import { postPath } from "@/lib/permalinks";
 import { getPageTree, listParentCandidates, type PostType } from "@/lib/posts";
@@ -23,7 +25,7 @@ export async function editorOptions(
     meta?: unknown;
   },
 ): Promise<EditorOptions> {
-  const [settings, categories, parents, tree, forms, translations] =
+  const [settings, categories, parents, tree, forms, translations, sent] =
     await Promise.all([
       getSettings(),
       post.type === "post" ? listTerms("category") : [],
@@ -31,7 +33,29 @@ export async function editorOptions(
       post.type === "page" ? getPageTree() : [],
       listForms(),
       post.id ? getTranslations({ id: post.id, meta: post.meta ?? {} }) : [],
+      post.id && post.type === "post" ? newsletterForPost(post.id) : null,
     ]);
+  const newsletter =
+    settings.newsletterEnabled &&
+    post.type === "post" &&
+    hasCap(actor, "edit_others_posts")
+      ? {
+          subscribers: (await subscriberCounts()).active,
+          sent:
+            sent && sent.status !== "cancelled"
+              ? {
+                  status: sent.status,
+                  subject: sent.subject,
+                  delivered: sent.sent,
+                  at: formatInZone(
+                    sent.finishedAt ?? sent.sendAt,
+                    settings.timezone,
+                    `${settings.dateFormat} HH:mm`,
+                  ),
+                }
+              : null,
+        }
+      : null;
 
   const parentPath = post.parentId
     ? tree.find((p) => p.id === post.parentId)?.path
@@ -75,6 +99,7 @@ export async function editorOptions(
     defaultLanguage: settings.defaultLanguage,
     languages: settings.languages,
     translations,
+    newsletter,
     viewUrl:
       live && post.id
         ? postPath(

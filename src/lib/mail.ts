@@ -2,7 +2,13 @@ import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { getSettings } from "./options";
 
-export type Mail = { to: string; subject: string; text: string; html?: string };
+export type Mail = {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  headers?: Record<string, string>;
+};
 
 let transport: Transporter | null | undefined;
 

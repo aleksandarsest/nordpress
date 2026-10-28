@@ -276,6 +276,17 @@ Tick **Members only** on any post or page to keep it for members. Visitors see t
 - **Grant or end** memberships by hand, for example for sponsors or staff.
 - **No leaks:** members-only content stays out of the RSS feed, the public REST API, the Markdown copies and `llms-full.txt`, search snippets beyond the teaser, and the semantic index, so the site chat can't quote it. People with editing roles always see everything.
 
+## Newsletter
+
+Turn it on under **Newsletter** and readers can subscribe at `/newsletter`, in a box after each post, or from their account. Every signup is confirmed by email (double opt-in), and the signup form gives the same answer whether or not an address is already on the list.
+
+- **Send a post** from its editor: the **Newsletter** card takes a subject and preview text (Claude can suggest three subject lines), sends you a test, then emails it to every subscriber or only to members. Scheduled posts go out when they're published. Or tick **Email every new post when it's published**.
+- **Members-only posts** reach subscribers with member access in full; everyone else gets the teaser and a link to join.
+- **Email-safe:** posts are turned into email HTML with inline styles and absolute links. Videos become a thumbnail that links to the video, and forms become a link to the post. Every email has a plain-text version and an unsubscribe link, and supports one-click unsubscribe from the mail app (`List-Unsubscribe`, RFC 8058). Add your postal address under the newsletter settings; anti-spam laws in many countries require it.
+- **Subscribers:** search, remove, export to CSV, and import a list from Mailchimp, Substack, Ghost or anywhere else.
+- **Sending** goes in batches of 50, can resume where it left off, and never emails a post twice. If the mail server is down it waits 15 minutes and retries from the same place. It needs `SMTP_URL`. Sending starts right away on a normal server; on serverless hosts, also call `GET /api/cron/newsletter` every few minutes with `Authorization: Bearer <CRON_SECRET>`.
+- **Agents:** `get_newsletter` and `email_post` over MCP. Emailing is public, so it follows the site's agent policy, like publishing.
+
 ## Translations
 
 List the languages you publish in under **Settings → General** (for example `de, fr`). Each post and page then gets a **Translations** card in the editor:
@@ -429,6 +440,7 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | WPML / Polylang                                    | Translations as linked posts (`meta.lang`, `meta.translationOf`), `src/lib/translations.ts` |
 | WooCommerce (core store)                           | `products` + `orders`, `src/lib/shop`, Stripe Checkout                                      |
 | Form plugins (Contact Form 7, Gravity Forms)       | `forms` + `form_submissions`, built in                                                      |
+| Newsletter plugins (MailPoet, Jetpack Subscribe)   | `subscribers` + `newsletters`, `src/lib/newsletter`, built in                               |
 | Themes and `theme_mods`                            | `src/themes/*`, options saved as `theme:<slug>`                                             |
 
 ## License

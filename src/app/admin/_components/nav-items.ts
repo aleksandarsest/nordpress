@@ -15,6 +15,7 @@ export type NavItem = {
     | "forms"
     | "shop"
     | "members"
+    | "newsletter"
     | "appearance"
     | "plugins"
     | "tools"
@@ -117,6 +118,12 @@ const NAV: NavDef[] = [
         cap: "manage_options",
       },
     ],
+  },
+  {
+    label: "Newsletter",
+    href: "/admin/newsletter",
+    icon: "newsletter",
+    cap: "edit_others_posts",
   },
   {
     label: "Members",

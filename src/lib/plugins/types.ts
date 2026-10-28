@@ -43,6 +43,10 @@ export interface ActionHooks {
   "comment.created": [comment: Comment];
   "media.uploaded": [item: Media];
   "form.submitted": [event: FormSubmittedEvent];
+  /** Someone confirmed their newsletter subscription. */
+  "newsletter.subscribed": [
+    subscriber: { id: number; email: string; name: string },
+  ];
   "user.created": [
     user: { id: string; name: string; email: string; role: Role },
   ];

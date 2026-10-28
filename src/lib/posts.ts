@@ -32,6 +32,7 @@ import {
 import { type AiSource, withAiSource } from "./ai-provenance";
 import { type Actor, canOnPost, hasCap } from "./capabilities";
 import { renderContent } from "./content";
+import { onPostSaved } from "./newsletter";
 import { getSettings } from "./options";
 import { postPath } from "./permalinks";
 import { doAction } from "./plugins";
@@ -640,6 +641,7 @@ export async function savePost(actor: Actor, input: SavePostInput) {
     actorId: actor.id,
     source: input.source ?? "app",
   });
+  await onPostSaved(saved, existing?.status ?? null, input.source ?? "app");
   return saved;
 }
 

@@ -3,9 +3,14 @@ import { redirect } from "next/navigation";
 import { formatInZone } from "@/lib/dates";
 import { getMembership } from "@/lib/members";
 import { membershipGrantsAccess } from "@/lib/members/access";
+import { subscriberByEmail } from "@/lib/newsletter";
 import { getSettings } from "@/lib/options";
 import { getViewer } from "@/lib/session";
 import { billingAction, leaveAction } from "../members/actions";
+import {
+  accountSubscribeAction,
+  accountUnsubscribeAction,
+} from "../newsletter/actions";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -19,10 +24,11 @@ export default async function AccountPage({
 }: PageProps<"/account">) {
   const viewer = await getViewer();
   if (!viewer) redirect(`/login?redirect_to=${encodeURIComponent("/account")}`);
-  const [membership, settings, query] = await Promise.all([
+  const [membership, settings, query, subscriber] = await Promise.all([
     getMembership(viewer.id),
     getSettings(),
     searchParams,
+    subscriberByEmail(viewer.email),
   ]);
   const active = membershipGrantsAccess(membership);
   const until = membership?.currentPeriodEnd
@@ -101,6 +107,44 @@ export default async function AccountPage({
           </p>
         )}
       </section>
+      {settings.newsletterEnabled && (
+        <section className="grid gap-3 rounded-xl border p-5">
+          <h2 className="font-semibold text-base">Newsletter</h2>
+          {subscriber?.status === "active" ? (
+            <>
+              <p>New posts arrive at {viewer.email}.</p>
+              <form action={accountUnsubscribeAction}>
+                <button
+                  type="submit"
+                  className="rounded-lg border px-4 py-2 font-medium"
+                >
+                  Unsubscribe
+                </button>
+              </form>
+            </>
+          ) : subscriber?.status === "pending" ? (
+            <p>
+              Check your inbox at {viewer.email} and click the link to confirm.
+            </p>
+          ) : (
+            <>
+              <p>
+                {query.newsletter === "off"
+                  ? "You've been unsubscribed."
+                  : "Get new posts by email."}
+              </p>
+              <form action={accountSubscribeAction}>
+                <button
+                  type="submit"
+                  className="rounded-lg border px-4 py-2 font-medium"
+                >
+                  Subscribe
+                </button>
+              </form>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

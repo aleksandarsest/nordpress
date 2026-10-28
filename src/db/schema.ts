@@ -755,6 +755,73 @@ export const oauthTokens = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Newsletter: subscribers (double opt-in) and posts sent to them by email
+// ---------------------------------------------------------------------------
+
+export const subscriberStatusEnum = pgEnum("subscriber_status", [
+  "pending",
+  "active",
+  "unsubscribed",
+]);
+
+export const subscribers = pgTable(
+  "subscribers",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    // Stored lowercased; one row per address
+    email: text("email").notNull().unique(),
+    name: text("name").notNull().default(""),
+    status: subscriberStatusEnum("status").notNull().default("pending"),
+    // "form", "account", "import" or "admin"
+    source: text("source").notNull().default("form"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("subscribers_status_idx").on(t.status, t.id)],
+);
+
+export const newsletterStatusEnum = pgEnum("newsletter_status", [
+  "queued",
+  "sending",
+  "sent",
+  "cancelled",
+]);
+
+export const newsletters = pgTable(
+  "newsletters",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    // Each post is emailed at most once
+    postId: bigint("post_id", { mode: "number" })
+      .unique()
+      .references(() => posts.id, { onDelete: "set null" }),
+    subject: text("subject").notNull(),
+    // The line inbox apps show after the subject
+    preheader: text("preheader").notNull().default(""),
+    // "everyone", or "members": only subscribers with member access
+    audience: text("audience").notNull().default("everyone"),
+    status: newsletterStatusEnum("status").notNull().default("queued"),
+    // Not sent before this (a scheduled post's publish time)
+    sendAt: timestamp("send_at", { withTimezone: true }).notNull().defaultNow(),
+    // Sending goes through subscribers in id order; this is the last one done
+    cursor: bigint("cursor", { mode: "number" }).notNull().default(0),
+    // One worker at a time: a lease that runs out if a worker dies
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    sent: integer("sent").notNull().default(0),
+    failed: integer("failed").notNull().default(0),
+    error: text("error"),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("newsletters_status_idx").on(t.status, t.sendAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 
@@ -784,3 +851,6 @@ export type Order = typeof orders.$inferSelect;
 export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 export type MembershipPlan = typeof membershipPlans.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
+export type Subscriber = typeof subscribers.$inferSelect;
+export type SubscriberStatus = (typeof subscriberStatusEnum.enumValues)[number];
+export type Newsletter = typeof newsletters.$inferSelect;

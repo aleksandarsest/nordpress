@@ -20,6 +20,12 @@ import { FIELD_TYPES, FormDefinitionError } from "../forms/fields";
 import { normalizeLanguageCode } from "../i18n";
 import { docToMarkdown, markdownToHtml } from "../markdown";
 import { getMedia, listMedia, mediaUrl, updateMedia } from "../media";
+import {
+  listNewsletters,
+  NewsletterError,
+  queueNewsletter,
+  subscriberCounts,
+} from "../newsletter";
 import type { SiteSettings } from "../options";
 import { postPath } from "../permalinks";
 import {
@@ -1376,6 +1382,96 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     }),
 
     // -----------------------------------------------------------------------
+    // Newsletter
+    // -----------------------------------------------------------------------
+    defineTool({
+      name: "get_newsletter",
+      title: "Newsletter overview",
+      description:
+        "Subscriber counts and the most recent newsletters (posts emailed to subscribers), with how many were delivered.",
+      input: {},
+      kind: "read",
+      run: async () => {
+        need("edit_others_posts", "manage the newsletter");
+        const [counts, sends] = await Promise.all([
+          subscriberCounts(),
+          listNewsletters(10),
+        ]);
+        return {
+          text: json({
+            enabled: settings.newsletterEnabled,
+            automatic: settings.newsletterAutoSend,
+            subscribers: counts,
+            recent: sends.map(({ newsletter: n }) => ({
+              post_id: n.postId,
+              subject: n.subject,
+              status: n.status,
+              delivered: n.sent,
+              failed: n.failed,
+              when: (n.finishedAt ?? n.sendAt).toISOString(),
+            })),
+          }),
+        };
+      },
+    }),
+
+    defineTool({
+      name: "email_post",
+      title: "Email a post to subscribers",
+      description:
+        "Sends a published or scheduled post to the newsletter's subscribers (a scheduled one goes out when it's published). A post can be emailed only once and it can't be unsent, so confirm the subject with the user first.",
+      input: {
+        post_id: z.number().int().positive(),
+        subject: z
+          .string()
+          .max(200)
+          .optional()
+          .describe(
+            "Defaults to the post title; at most about 60 characters reads best",
+          ),
+        preheader: z
+          .string()
+          .max(200)
+          .optional()
+          .describe("Preview text after the subject; defaults to the excerpt"),
+        audience: z.enum(["everyone", "members"]).default("everyone"),
+      },
+      kind: "write",
+      destructive: true,
+      preview: async ({ post_id, subject, preheader, audience }) => {
+        const { post } = await emailTarget(post_id);
+        const { active } = await subscriberCounts();
+        return {
+          summary: `Email “${post.title}” to ${audience === "members" ? "subscribers who are members" : `${active} subscribers`}`,
+          details: [
+            { label: "Subject", after: subject || post.title },
+            { label: "Preview text", after: preheader || post.excerpt || null },
+          ],
+          warning: "Emails can't be unsent.",
+        };
+      },
+      run: async ({ post_id, subject, preheader, audience }) => {
+        const { post } = await emailTarget(post_id);
+        const row = await queueNewsletter({
+          postId: post.id,
+          subject,
+          preheader,
+          audience,
+          actorId: viewer.id,
+        });
+        return {
+          text: json({
+            result:
+              row.sendAt > new Date()
+                ? `Scheduled: “${row.subject}” goes out when the post is published.`
+                : `Sending “${row.subject}” to subscribers now.`,
+          }),
+          target: `newsletter:${row.id}`,
+        };
+      },
+    }),
+
+    // -----------------------------------------------------------------------
     // Site upkeep
     // -----------------------------------------------------------------------
     defineTool({
@@ -1481,6 +1577,18 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     return { post, lang, existing: existing?.id };
   }
 
+  async function emailTarget(id: number) {
+    need("edit_others_posts", "send the newsletter");
+    if (!ctx.canChangeLive)
+      throw denied(
+        `Emailing subscribers is public, and agents can't change the live site here. ${POLICY_HINT}`,
+      );
+    const found = await load(id);
+    if (found.post.type !== "post")
+      throw new AgentError("Only posts can be emailed.");
+    return found;
+  }
+
   async function inboxItem(id: number, action: "apply" | "dismiss") {
     need("edit_others_pages", "work through the Inbox");
     const item = await getOpenSuggestion(id);
@@ -1514,6 +1622,7 @@ function messageOf(error: unknown) {
     error instanceof PostError ||
     error instanceof CommentError ||
     error instanceof FormError ||
+    error instanceof NewsletterError ||
     error instanceof FormDefinitionError
   )
     return error.message;

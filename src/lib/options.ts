@@ -74,6 +74,14 @@ export type SiteSettings = {
   shopCurrency: string;
   /** How to pay when Stripe isn't set up, e.g. bank details. */
   shopPaymentInstructions: string;
+  /** Let readers subscribe and email them posts. */
+  newsletterEnabled: boolean;
+  /** Email every new post to subscribers when it's published. */
+  newsletterAutoSend: boolean;
+  /** Show a signup box after each post. */
+  newsletterSignupAfterPosts: boolean;
+  /** Footer of every newsletter: who sends it and a postal address. */
+  newsletterFooter: string;
   /** Let AI agents connect over MCP at /mcp with an application password. */
   mcpEnabled: boolean;
   /**
@@ -130,6 +138,10 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   languages: [],
   shopCurrency: "EUR",
   shopPaymentInstructions: "",
+  newsletterEnabled: false,
+  newsletterAutoSend: false,
+  newsletterSignupAfterPosts: true,
+  newsletterFooter: "",
   mcpEnabled: true,
   agentsCanPublish: false,
   activePlugins: [],

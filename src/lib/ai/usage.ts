@@ -23,6 +23,7 @@ export const FEATURE_LABELS: Record<string, string> = {
   site_setup: "Site setup",
   inbox: "AI inbox checks",
   translate: "Translation",
+  newsletter: "Newsletter subject lines",
   form_triage: "Form spam triage",
   embed_index: "Search indexing (Voyage)",
   embed_query: "Search queries (Voyage)",

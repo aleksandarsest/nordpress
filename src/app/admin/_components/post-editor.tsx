@@ -18,6 +18,7 @@ import { createPreviewAction, savePostAction } from "../posts/actions";
 import { AiAssistant } from "./ai-assistant";
 import { AiSuggestions, type SuggestionTargets } from "./ai-suggestions";
 import { MediaPicker } from "./media-picker";
+import { NewsletterCard, type NewsletterInfo } from "./newsletter-card";
 import { RichTextEditor } from "./rich-text-editor";
 import { TranslationsCard } from "./translations-card";
 
@@ -58,6 +59,8 @@ export type EditorOptions = {
   languages: string[];
   /** This post and its translations (empty for unsaved posts). */
   translations: TranslationLink[];
+  /** Emailing this post; null when the newsletter is off or not allowed. */
+  newsletter: NewsletterInfo | null;
 };
 
 const STATUS_TEXT: Record<PostStatus, string> = {
@@ -526,6 +529,17 @@ export function PostEditor({
             </div>
           </CardContent>
         </Card>
+
+        {post.id && options.newsletter && (
+          <NewsletterCard
+            postId={post.id}
+            title={post.title}
+            status={post.status}
+            membersOnly={post.membersOnly}
+            ai={options.ai}
+            info={options.newsletter}
+          />
+        )}
 
         {post.id && options.languages.length > 0 && (
           <TranslationsCard postId={post.id} options={options} />
