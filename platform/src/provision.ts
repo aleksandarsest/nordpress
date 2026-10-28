@@ -1,25 +1,23 @@
 import postgres from "postgres";
 import { config, siteUrl } from "./config.ts";
 import { type Site, sql } from "./db.ts";
-import {
-  createContainer,
-  createVolume,
-  removeContainer,
-  removeVolume,
-  restartContainer,
-  runToCompletion,
-  startContainer,
-} from "./docker.ts";
-import { resourceNames } from "./names.ts";
+import { envFile, npSite } from "./host.ts";
+import { resourceNames, sitePort } from "./names.ts";
+import { forget, wake } from "./wake.ts";
 
-// Creating, upgrading and removing hosted sites. Each site gets its own
-// database, its own container and its own volumes, so no site can see
-// another's data. They all run one shared build, made from an empty
-// template site; a site clears the template's cached pages when it starts.
+// Creating, upgrading and removing hosted sites. Each site runs as its own
+// Linux user (a systemd service, nordpress-site@<name>) with its own folder
+// and its own database, so no site can see another's data. They all start
+// from one shared build, made from an empty site; a site clears that
+// build's cached pages when it starts.
 
-const admin = () => postgres(config.adminDatabaseUrl, { max: 1 });
-const internalUrl = (sub: string) =>
-  `http://${resourceNames(sub).container}:3000`;
+const admin = () =>
+  postgres(config.adminDatabaseUrl, { max: 1, onnotice: () => {} });
+export const internalUrl = (site: Site) =>
+  `http://127.0.0.1:${sitePort(site.id)}`;
+
+/** A database every site's is copied from, with pgvector already in it (see the README). */
+const TEMPLATE_DATABASE = "np_template";
 
 // Database identifiers come from resourceNames (letters, digits and
 // underscores only) and passwords from randomSecret (URL-safe base64), so
@@ -36,18 +34,13 @@ async function createDatabase(sub: string, password: string) {
     await db.unsafe(
       `create role ${safe(role)} login password '${safe(password)}'`,
     );
-    await db.unsafe(`create database ${safe(database)} owner ${safe(role)}`);
+    // Without being a superuser, the platform must belong to a role to give it a database
+    await db.unsafe(`grant ${safe(role)} to current_user`);
+    await db.unsafe(
+      `create database ${safe(database)} owner ${safe(role)} template ${TEMPLATE_DATABASE}`,
+    );
   } finally {
     await db.end();
-  }
-  // Extensions need a superuser, inside the new database
-  const url = new URL(config.adminDatabaseUrl);
-  url.pathname = `/${database}`;
-  const site = postgres(url.toString(), { max: 1 });
-  try {
-    await site`create extension if not exists vector`;
-  } finally {
-    await site.end();
   }
 }
 
@@ -63,50 +56,30 @@ async function dropDatabase(sub: string) {
 }
 
 function siteEnv(site: Site) {
-  const { database, role } = resourceNames(site.subdomain);
+  const { database, role, dir } = resourceNames(site.subdomain);
   const url = siteUrl(site.subdomain);
   return {
-    DATABASE_URL: `postgres://${role}:${site.db_password}@${config.sitesDatabaseHost}:5432/${database}`,
+    PORT: String(sitePort(site.id)),
+    DATABASE_URL: `postgres://${role}:${site.db_password}@127.0.0.1:5432/${database}`,
     SITE_URL: url,
     BETTER_AUTH_URL: url,
     BETTER_AUTH_SECRET: site.auth_secret,
     INTERNAL_TOKEN: site.internal_token,
     CRON_SECRET: site.cron_secret,
     SITE_NAME: site.title,
-    UPLOADS_DIR: "/app/storage/uploads",
-    BACKUP_DIR: "/app/storage/backups",
-    NODE_OPTIONS: `--max-old-space-size=${Math.max(128, config.siteMemoryMb - 150)}`,
+    UPLOADS_DIR: `${dir}/storage/uploads`,
+    BACKUP_DIR: `${dir}/storage/backups`,
+    NODE_OPTIONS: `--max-old-space-size=${config.siteHeapMb}`,
     ...(config.smtpUrl && { SMTP_URL: config.smtpUrl }),
     ...(config.mailFrom && { MAIL_FROM: config.mailFrom }),
   };
 }
 
-/** Copies the shared build into a site's own build volume. */
-async function copyTemplate(sub: string) {
-  const { nextVolume } = resourceNames(sub);
-  const code = await runToCompletion({
-    name: `np-copy-${sub}`,
-    image: config.image,
-    entrypoint: [
-      "sh",
-      "-c",
-      "rm -rf /app/.next/* && cp -a /template/. /app/.next/",
-    ],
-    env: {},
-    mounts: [
-      { volume: config.templateVolume, target: "/template", readOnly: true },
-      { volume: nextVolume, target: "/app/.next" },
-    ],
-    network: config.network,
-  });
-  if (code !== 0) throw new Error("Couldn't copy the site template.");
-}
-
-async function waitUntilUp(sub: string, seconds = 180) {
+async function waitUntilUp(site: Site, seconds = 120) {
   for (let i = 0; i < seconds; i++) {
     try {
-      const res = await fetch(`${internalUrl(sub)}/login`, {
-        signal: AbortSignal.timeout(3000),
+      const res = await fetch(`${internalUrl(site)}/login`, {
+        signal: AbortSignal.timeout(5000),
       });
       if (res.status < 500) return;
     } catch {
@@ -125,42 +98,23 @@ export async function provisionSite(
   site: Site,
   owner: { name: string; email: string; password: string },
 ) {
-  const r = resourceNames(site.subdomain);
   try {
     await step(site, "Creating the database");
     await createDatabase(site.subdomain, site.db_password);
     await step(site, "Preparing the files");
-    await createVolume(r.nextVolume, { "nordpress.site": site.subdomain });
-    await createVolume(r.uploadsVolume, { "nordpress.site": site.subdomain });
-    await copyTemplate(site.subdomain);
+    await npSite("create", site.subdomain, envFile(siteEnv(site)));
     await step(site, "Starting the site");
-    await createContainer({
-      name: r.container,
-      image: config.image,
-      env: siteEnv(site),
-      mounts: [
-        { volume: r.nextVolume, target: "/app/.next" },
-        { volume: r.uploadsVolume, target: "/app/storage" },
-      ],
-      network: config.network,
-      memoryMb: config.siteMemoryMb,
-      restart: true,
-      labels: { "nordpress.site": site.subdomain },
-    });
-    await startContainer(r.container);
-    await waitUntilUp(site.subdomain);
+    await wake(site.subdomain);
+    await waitUntilUp(site);
     await step(site, "Creating your account");
-    const res = await fetch(
-      `${internalUrl(site.subdomain)}/api/internal/install`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${site.internal_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ title: site.title, ...owner }),
+    const res = await fetch(`${internalUrl(site)}/api/internal/install`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${site.internal_token}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ title: site.title, ...owner }),
+    });
     if (!res.ok && res.status !== 409)
       throw new Error(
         `Installing failed: ${(await res.json().catch(() => ({}))).error ?? res.status}`,
@@ -173,10 +127,8 @@ export async function provisionSite(
 }
 
 async function removeResources(site: Site) {
-  const r = resourceNames(site.subdomain);
-  await removeContainer(r.container);
-  await removeVolume(r.nextVolume);
-  await removeVolume(r.uploadsVolume);
+  forget(site.subdomain);
+  await npSite("remove", site.subdomain);
   await dropDatabase(site.subdomain);
 }
 
@@ -203,78 +155,17 @@ export async function retrySite(
   await provisionSite(site, owner);
 }
 
-/** Makes the shared build from an empty template site. After each upgrade. */
-export async function buildTemplate() {
-  const password = "template";
-  const db = admin();
-  try {
-    const [exists] =
-      await db`select 1 from pg_roles where rolname = ${resourceNames("template").role}`;
-    if (!exists) await createDatabase("template", password);
-  } finally {
-    await db.end();
-  }
-  const { database, role } = resourceNames("template");
-  await createVolume(config.templateVolume);
-  const code = await runToCompletion({
-    name: "np-template-build",
-    image: config.image,
-    entrypoint: [
-      "sh",
-      "-c",
-      "node scripts/migrate.mjs && pnpm build && cp .source-hash .next/.source-hash",
-    ],
-    env: {
-      DATABASE_URL: `postgres://${role}:${password}@${config.sitesDatabaseHost}:5432/${database}`,
-      BETTER_AUTH_SECRET: "template-build-only",
-      SITE_URL: `https://template.${config.domain}`,
-    },
-    mounts: [{ volume: config.templateVolume, target: "/app/.next" }],
-    network: config.network,
-  });
-  if (code !== 0)
-    throw new Error("The template build failed; see the Docker logs.");
-}
+/** Downloads the build for the version checked out on the server. */
+export const fetchBuild = () => npSite("template");
 
-/** After a new build: every site gets it and restarts (its data stays). */
+/** After a new build: every site gets it on its next start (its data stays). */
 export async function upgradeSites() {
   const sites = await sql<Site[]>`select * from sites where status = 'active'`;
   for (const site of sites) {
-    await removeContainer(resourceNames(site.subdomain).container);
-    await copyTemplate(site.subdomain);
-    const r = resourceNames(site.subdomain);
-    await createContainer({
-      name: r.container,
-      image: config.image,
-      env: siteEnv(site),
-      mounts: [
-        { volume: r.nextVolume, target: "/app/.next" },
-        { volume: r.uploadsVolume, target: "/app/storage" },
-      ],
-      network: config.network,
-      memoryMb: config.siteMemoryMb,
-      restart: true,
-      labels: { "nordpress.site": site.subdomain },
-    });
-    await startContainer(r.container);
-    console.log(`[upgrade] ${site.subdomain} restarted on the new build`);
+    forget(site.subdomain);
+    await npSite("update", site.subdomain);
+    console.log(`[upgrade] ${site.subdomain} will start on the new build`);
   }
 }
 
-export const restartSite = (site: Site) =>
-  restartContainer(resourceNames(site.subdomain).container);
-
-/** The scheduled work each site expects from a cron. */
-export async function runSiteCrons(kind: "frequent" | "daily") {
-  const sites = await sql<Site[]>`select * from sites where status = 'active'`;
-  const paths =
-    kind === "frequent"
-      ? ["/api/cron/newsletter"]
-      : ["/api/cron/site-checks", "/api/cron/backup"];
-  for (const site of sites)
-    for (const path of paths)
-      await fetch(`${internalUrl(site.subdomain)}${path}`, {
-        headers: { Authorization: `Bearer ${site.cron_secret}` },
-        signal: AbortSignal.timeout(60_000),
-      }).catch(() => {});
-}
+export const restartSite = (site: Site) => npSite("restart", site.subdomain);

@@ -1,14 +1,14 @@
 import { randomSecret } from "./auth.ts";
 import { migrate, type Site, sql } from "./db.ts";
-import { buildTemplate, restartSite, upgradeSites } from "./provision.ts";
+import { fetchBuild, restartSite, upgradeSites } from "./provision.ts";
 
-// Running the platform by hand:
-//   node platform/src/cli.ts invite [uses] [note]   make an invite code
-//   node platform/src/cli.ts invites                list invite codes
-//   node platform/src/cli.ts sites                  list sites
-//   node platform/src/cli.ts template               build the shared template
-//   node platform/src/cli.ts upgrade                template, then every site
-//   node platform/src/cli.ts restart <subdomain>    restart one site
+// Running the platform by hand, on the server (np-platform loads its settings):
+//   sudo np-platform invite [uses] [note]   make an invite code
+//   sudo np-platform invites                list invite codes
+//   sudo np-platform sites                  list sites
+//   sudo np-platform template               download the build for this version
+//   sudo np-platform upgrade                that, then every site gets it
+//   sudo np-platform restart <subdomain>    restart one site
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -36,13 +36,14 @@ async function main() {
         );
       break;
     case "template":
-      await buildTemplate();
-      console.log("Template built.");
+      console.log(await fetchBuild());
       break;
     case "upgrade":
-      await buildTemplate();
+      console.log(await fetchBuild());
       await upgradeSites();
-      console.log("Every site is on the new build.");
+      console.log(
+        "Every site starts on the new build from its next visit. Now run: systemctl restart nordpress-platform",
+      );
       break;
     case "restart": {
       const [site] = await sql<

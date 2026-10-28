@@ -1,0 +1,32 @@
+# One hosted site: nordpress-site@<name>. The platform starts it on the
+# first visit and stops it when it's been idle, so it isn't enabled.
+[Unit]
+Description=Nordpress site %i
+After=network.target postgresql.service
+
+[Service]
+User=np-%i
+Group=np-%i
+WorkingDirectory=/var/lib/nordpress/sites/%i
+EnvironmentFile=/etc/nordpress/sites/%i.env
+Environment=NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOME=/var/lib/nordpress/sites/%i
+ExecStartPre=/usr/bin/node scripts/migrate.mjs
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p ${PORT}
+# The shared build was made from an empty site; clear its cached pages
+ExecStartPost=-/usr/bin/node scripts/refresh-when-ready.mjs
+TimeoutStartSec=180
+Restart=on-failure
+RestartSec=5
+MemoryMax=320M
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/nordpress/sites/%i
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes

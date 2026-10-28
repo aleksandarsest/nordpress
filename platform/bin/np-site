@@ -1,0 +1,93 @@
+#!/bin/sh
+# np-site: the only part of the platform that runs as root. The platform
+# (user nordpress) may run it through sudo and nothing else; it checks every
+# name it's given. Installed to /usr/local/sbin/np-site.
+#
+#   np-site create <name>    make the site's user and folder; its settings come on stdin
+#   np-site start|stop|restart|status <name>
+#   np-site update <name>    stop the site and give it the current build
+#   np-site remove <name>    stop the site and delete its folder, settings and user
+#   np-site template         download the build for the checked-out version
+set -eu
+
+APP=/opt/nordpress
+TEMPLATE=/var/lib/nordpress/template
+SITES=/var/lib/nordpress/sites
+SETTINGS=/etc/nordpress/sites
+RELEASE=https://github.com/aleksandarsest/nordpress/releases/download/platform-build
+
+fail() { echo "np-site: $*" >&2; exit 1; }
+
+action=${1:-}
+name=${2:-}
+
+if [ "$action" != template ]; then
+  case "$name" in
+    "" | -* | *-  | *[!a-z0-9-]*) fail "not a site name: '$name'" ;;
+  esac
+  [ ${#name} -ge 3 ] && [ ${#name} -le 29 ] || fail "not a site name: '$name'"
+fi
+
+user="np-$name"
+dir="$SITES/$name"
+unit="nordpress-site@$name.service"
+
+# Each site gets its own copy of the build: Next.js writes regenerated pages into it
+copy_build() {
+  [ -f "$TEMPLATE/.next/BUILD_ID" ] || fail "no build yet; run: np-site template"
+  rm -rf "$dir/.next"
+  cp -a "$TEMPLATE/.next" "$dir/.next"
+  chown -R "$user:$user" "$dir/.next"
+}
+
+case "$action" in
+  create)
+    id "$user" >/dev/null 2>&1 ||
+      useradd --system --no-create-home --home-dir "$dir" --shell /usr/sbin/nologin "$user"
+    mkdir -p "$dir/storage"
+    for f in node_modules package.json next.config.ts public scripts src; do
+      ln -sfn "$APP/$f" "$dir/$f"
+    done
+    copy_build
+    chown "$user:$user" "$dir" "$dir/storage"
+    chmod 700 "$dir"
+    mkdir -p "$SETTINGS"
+    chmod 700 "$SETTINGS"
+    (umask 077 && cat > "$SETTINGS/$name.env")
+    ;;
+  start | stop | restart)
+    systemctl "$action" "$unit"
+    ;;
+  status)
+    systemctl is-active "$unit" || true
+    ;;
+  update)
+    systemctl stop "$unit"
+    copy_build
+    ;;
+  remove)
+    systemctl stop "$unit" 2>/dev/null || true
+    systemctl reset-failed "$unit" 2>/dev/null || true
+    rm -rf "$dir"
+    rm -f "$SETTINGS/$name.env"
+    if id "$user" >/dev/null 2>&1; then userdel "$user"; fi
+    ;;
+  template)
+    want=$(git -C "$APP" rev-parse HEAD)
+    built=$(curl -fsSL "$RELEASE/nordpress-build.sha") || fail "couldn't reach the build on GitHub"
+    [ "$built" = "$want" ] ||
+      fail "GitHub has the build for $built, but $APP is at $want. Wait for the Platform build workflow, or check out $built."
+    rm -rf "$TEMPLATE.new"
+    mkdir -p "$TEMPLATE.new"
+    curl -fsSL "$RELEASE/nordpress-build.tar.gz" | tar -xz -C "$TEMPLATE.new"
+    [ -f "$TEMPLATE.new/.next/BUILD_ID" ] || fail "the download isn't a build"
+    rm -rf "$TEMPLATE.old"
+    if [ -d "$TEMPLATE" ]; then mv "$TEMPLATE" "$TEMPLATE.old"; fi
+    mv "$TEMPLATE.new" "$TEMPLATE"
+    rm -rf "$TEMPLATE.old"
+    echo "Build $want is ready."
+    ;;
+  *)
+    fail "usage: np-site create|start|stop|restart|status|update|remove <name>, or np-site template"
+    ;;
+esac

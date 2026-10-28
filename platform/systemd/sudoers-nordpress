@@ -1,0 +1,2 @@
+# The platform may run the site helper as root, and nothing else.
+nordpress ALL=(root) NOPASSWD: /usr/local/sbin/np-site

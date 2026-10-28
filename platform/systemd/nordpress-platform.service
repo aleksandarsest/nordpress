@@ -1,0 +1,16 @@
+# The platform: aleksa.me and every site's traffic, behind nginx.
+[Unit]
+Description=Nordpress platform
+After=network.target postgresql.service
+
+[Service]
+User=nordpress
+WorkingDirectory=/opt/nordpress
+EnvironmentFile=/etc/nordpress/platform.env
+ExecStart=/usr/bin/node platform/src/server.ts
+Restart=always
+RestartSec=3
+MemoryMax=150M
+
+[Install]
+WantedBy=multi-user.target

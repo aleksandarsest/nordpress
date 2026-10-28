@@ -16,21 +16,19 @@ export const config = {
   secret: need("PLATFORM_SECRET"),
   /** The platform's own tables. */
   databaseUrl: need("PLATFORM_DATABASE_URL"),
-  /** A superuser on the same server, for creating each site's database. */
+  /** A role that may create roles and databases, for each site's own. */
   adminDatabaseUrl: need("ADMIN_DATABASE_URL"),
-  /** How sites reach that server from their containers. */
-  sitesDatabaseHost: process.env.SITES_DATABASE_HOST ?? "np-db",
-  /** The Nordpress image every site runs. */
-  image: process.env.NORDPRESS_IMAGE ?? "nordpress:latest",
-  /** The Docker network the sites and the platform share. */
-  network: process.env.SITES_NETWORK ?? "np-sites",
-  /** Volume holding the shared build made from an empty template site. */
-  templateVolume: process.env.TEMPLATE_VOLUME ?? "np-template",
+  /** The root helper the platform runs through sudo. */
+  helper: process.env.NP_SITE_HELPER ?? "/usr/local/sbin/np-site",
   /** At most this many sites in all, while in beta. */
   maxSites: Number(process.env.MAX_SITES ?? 10),
   sitesPerAccount: Number(process.env.SITES_PER_ACCOUNT ?? 1),
-  /** Memory limit per site container, in megabytes. */
-  siteMemoryMb: Number(process.env.SITE_MEMORY_MB ?? 450),
+  /** At most this many sites running at once; the least recently visited sleeps. */
+  maxAwake: Number(process.env.MAX_AWAKE ?? 2),
+  /** A site sleeps after this many minutes without visitors. */
+  idleMinutes: Number(process.env.IDLE_MINUTES ?? 15),
+  /** Node's heap limit per site, in megabytes. */
+  siteHeapMb: Number(process.env.SITE_HEAP_MB ?? 160),
   reserved: reservedNames(process.env.RESERVED_SUBDOMAINS ?? ""),
   /** Email for the sites (password resets, forms, newsletters), shared. */
   smtpUrl: process.env.SMTP_URL ?? "",

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs a platform command with its settings, as the platform's user:
+#   sudo np-platform invite 1 "for Ana"
+# Installed to /usr/local/sbin/np-platform; see platform/README.md.
+set -eu
+set -a
+. /etc/nordpress/platform.env
+set +a
+cd /opt/nordpress
+exec sudo -E -u nordpress /usr/bin/node platform/src/cli.ts "$@"

@@ -1,6 +1,6 @@
 // Waits for the server to answer, then clears every cached page, so a site
-// started from a shared template build serves its own content. Run by
-// docker/entrypoint.sh for hosted sites.
+// started from a shared template build serves its own content. Run when
+// each hosted site starts (platform/systemd/nordpress-site@.service).
 const port = process.env.PORT || 3000;
 const base = `http://127.0.0.1:${port}`;
 

@@ -101,7 +101,7 @@ ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}
 <form method="post" action="/signup" class="card">
 <label>Invite code<input name="invite" required value="${esc(values.invite)}" autocomplete="off"></label>
 <label>Site name<input name="title" required maxlength="200" value="${esc(values.title)}" id="title"></label>
-<label>Address<span class="suffix"><input name="subdomain" required maxlength="30" pattern="[a-zA-Z0-9-]{3,30}" value="${esc(values.subdomain)}" id="subdomain"><span>.${esc(config.domain)}</span></span><span class="hint">Letters, numbers and hyphens.</span></label>
+<label>Address<span class="suffix"><input name="subdomain" required maxlength="29" pattern="[a-zA-Z0-9-]{3,29}" value="${esc(values.subdomain)}" id="subdomain"><span>.${esc(config.domain)}</span></span><span class="hint">Letters, numbers and hyphens.</span></label>
 <label>Your name<input name="name" required maxlength="200" autocomplete="name" value="${esc(values.name)}"></label>
 <label>Email<input name="email" type="email" required autocomplete="email" value="${esc(values.email)}"></label>
 <label>Password<input name="password" type="password" required minlength="10" autocomplete="new-password"><span class="hint">At least 10 characters. You'll use it for this page and to log in to your site.</span></label>
@@ -109,7 +109,7 @@ ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}
 <script>
 const t=document.getElementById('title'),s=document.getElementById('subdomain');let edited=!!s.value;
 s.addEventListener('input',()=>edited=true);
-t.addEventListener('input',()=>{if(!edited)s.value=t.value.normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,30)});
+t.addEventListener('input',()=>{if(!edited)s.value=t.value.normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,29)});
 </script>`,
   );
 }

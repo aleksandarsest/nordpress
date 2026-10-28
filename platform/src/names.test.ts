@@ -27,7 +27,7 @@ describe("subdomains", () => {
       "-abc",
       "abc-",
       "a--b",
-      "x".repeat(31),
+      "x".repeat(30),
       "www",
       "admin",
       "dora",
@@ -52,12 +52,14 @@ describe("subdomains", () => {
 
   it("names a site's resources safely", () => {
     expect(resourceNames("pekara-sunce")).toEqual({
-      container: "np-site-pekara-sunce",
-      nextVolume: "np-site-pekara-sunce-next",
-      uploadsVolume: "np-site-pekara-sunce-uploads",
+      user: "np-pekara-sunce",
+      dir: "/var/lib/nordpress/sites/pekara-sunce",
       database: "np_site_pekara_sunce",
       role: "np_site_pekara_sunce",
     });
+    // The longest name still makes a valid Linux user name
+    const longest = checkSubdomain("x".repeat(29), reserved);
+    expect(resourceNames(longest).user.length).toBeLessThanOrEqual(32);
   });
 });
 

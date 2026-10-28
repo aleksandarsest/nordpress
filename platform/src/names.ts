@@ -84,7 +84,8 @@ export class NameError extends Error {}
 export function checkSubdomain(input: string, reserved: Set<string>) {
   const name = input.trim().toLowerCase();
   if (name.length < 3) throw new NameError("Use at least 3 characters.");
-  if (name.length > 30) throw new NameError("Use at most 30 characters.");
+  // Each site runs as the Linux user np-<name>, and those stop at 32
+  if (name.length > 29) throw new NameError("Use at most 29 characters.");
   if (!/^[a-z0-9-]+$/.test(name))
     throw new NameError("Use only letters, numbers and hyphens.");
   if (name.startsWith("-") || name.endsWith("-") || name.includes("--"))
@@ -103,7 +104,7 @@ export function suggestSubdomain(title: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 30)
+    .slice(0, 29)
     .replace(/-+$/g, "");
 }
 
@@ -117,14 +118,16 @@ export function siteFromHost(host: string | undefined, domain: string) {
   return /^[a-z0-9-]+$/.test(sub) ? sub : null;
 }
 
-/** Docker and Postgres names for a site; the subdomain is already checked. */
+/** System and Postgres names for a site; the subdomain is already checked. */
 export function resourceNames(sub: string) {
   const id = sub.replace(/-/g, "_");
   return {
-    container: `np-site-${sub}`,
-    nextVolume: `np-site-${sub}-next`,
-    uploadsVolume: `np-site-${sub}-uploads`,
+    user: `np-${sub}`,
+    dir: `/var/lib/nordpress/sites/${sub}`,
     database: `np_site_${id}`,
     role: `np_site_${id}`,
   };
 }
+
+/** The local port a site listens on, from its id; clear of the 3000s and 4000s other apps use. */
+export const sitePort = (id: number) => 6100 + Number(id);

@@ -3,9 +3,8 @@
 # then serve. Next.js prerenders pages from the database at build time, so
 # the build runs here rather than when the image is made.
 #
-# Hosted sites (see platform/) start from a shared build made from an empty
-# template site; INTERNAL_TOKEN is set for them, and once the server is up
-# the template's cached pages are cleared so the site serves its own.
+# When INTERNAL_TOKEN is set, the cached pages are cleared once the server
+# is up, for a build that was made against another database.
 set -e
 
 node scripts/migrate.mjs

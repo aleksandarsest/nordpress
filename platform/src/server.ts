@@ -3,6 +3,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import { posix } from "node:path";
 import {
   hashPassword,
   randomSecret,
@@ -12,7 +13,7 @@ import {
 } from "./auth.ts";
 import { config } from "./config.ts";
 import { type Account, migrate, type Site, sql } from "./db.ts";
-import { checkSubdomain, NameError, siteFromHost } from "./names.ts";
+import { checkSubdomain, NameError, siteFromHost, sitePort } from "./names.ts";
 import {
   accountPage,
   homePage,
@@ -22,14 +23,15 @@ import {
 } from "./pages.ts";
 import {
   deleteSite,
+  internalUrl,
   provisionSite,
   retrySite,
-  runSiteCrons,
 } from "./provision.ts";
 import { proxyToSite } from "./proxy.ts";
+import { awakeSites, forget, serving, startSleeping, wake } from "./wake.ts";
 
 // The platform: the home page and signup at <domain>, and every
-// name.<domain> request forwarded to that site's container. nginx in front
+// name.<domain> request forwarded to that site's server. nginx in front
 // terminates TLS and sends both here.
 
 const COOKIE = "np_session";
@@ -301,19 +303,38 @@ async function platform(req: IncomingMessage, res: ServerResponse) {
   send(res, 404, homePage(true));
 }
 
+const STARTING =
+  '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>One moment</title><p style="font:17px system-ui;margin:4rem auto;max-width:30rem;padding:0 1rem">This site is being set up or restarted. Try again in a minute.</p>';
+
 const server = createServer(async (req, res) => {
   try {
     const sub = siteFromHost(req.headers.host, config.domain);
     if (sub) {
       const [site] = await sql<
         Site[]
-      >`select status from sites where subdomain = ${sub}`;
+      >`select id, status from sites where subdomain = ${sub}`;
       if (!site) return send(res, 404, notFoundSite(sub));
+      if (site.status !== "active") return send(res, 503, STARTING);
       // Only the platform talks to a site's internal endpoints, from inside
-      const path = new URL(req.url ?? "/", "http://site").pathname;
-      if (/^\/+api\/+internal/i.test(decodeURIComponent(path)))
-        return send(res, 404, "Not found");
-      return proxyToSite(sub, req, res);
+      const path = posix.normalize(
+        `/${decodeURIComponent((req.url ?? "/").split("?")[0])}`,
+      );
+      if (/^\/api\/internal/i.test(path)) return send(res, 404, "Not found");
+      try {
+        await wake(sub);
+      } catch (error) {
+        console.error(`[wake] ${sub}`, error);
+        return send(res, 503, STARTING);
+      }
+      const finished = serving(sub);
+      let settled = false;
+      return proxyToSite(sitePort(site.id), req, res, (failed) => {
+        if (settled) return;
+        settled = true;
+        finished();
+        // Not answering: the next request starts it again
+        if (failed) forget(sub);
+      });
     }
     await platform(req, res);
   } catch (error) {
@@ -329,16 +350,48 @@ server.listen(config.port, () =>
   console.log(`[platform] listening on ${config.port} for ${config.domain}`),
 );
 
-// Each site's scheduled work: newsletters every 10 minutes, checks and
-// backups once a day
+await startSleeping(
+  (await sql<Site[]>`select subdomain from sites where status = 'active'`).map(
+    (s) => s.subdomain,
+  ),
+);
+
+async function cron(site: Site, path: string) {
+  await fetch(`${internalUrl(site)}${path}`, {
+    headers: { Authorization: `Bearer ${site.cron_secret}` },
+    signal: AbortSignal.timeout(120_000),
+  }).catch((error) => console.error(`[cron] ${site.subdomain}${path}`, error));
+}
+
+// Each site's scheduled work. Newsletters go out every 10 minutes from sites
+// that are awake (sending starts while someone is publishing). Once a day
+// every site wakes for its checks and backup, one at a time.
 let lastDaily = "";
 setInterval(
-  () => {
-    void runSiteCrons("frequent");
+  async () => {
+    const sites = await sql<
+      Site[]
+    >`select * from sites where status = 'active'`;
+    const up = new Set(awakeSites());
+    for (const site of sites.filter((s) => up.has(s.subdomain))) {
+      const done = serving(site.subdomain);
+      await cron(site, "/api/cron/newsletter");
+      done();
+    }
     const today = new Date().toISOString().slice(0, 10);
-    if (today !== lastDaily) {
-      lastDaily = today;
-      void runSiteCrons("daily");
+    if (today === lastDaily) return;
+    lastDaily = today;
+    for (const site of sites) {
+      try {
+        await wake(site.subdomain);
+      } catch (error) {
+        console.error(`[cron] couldn't wake ${site.subdomain}`, error);
+        continue;
+      }
+      const done = serving(site.subdomain);
+      await cron(site, "/api/cron/site-checks");
+      await cron(site, "/api/cron/backup");
+      done();
     }
   },
   10 * 60 * 1000,

@@ -1,7 +1,6 @@
 import { type IncomingMessage, request, type ServerResponse } from "node:http";
-import { resourceNames } from "./names.ts";
 
-// Forwards a request for name.<domain> to that site's container, streaming
+// Forwards a request for name.<domain> to that site's server, streaming
 // both ways (uploads, downloads, the AI assistant's streamed answers).
 
 // Hop-by-hop headers belong to one connection, not to the request
@@ -17,9 +16,10 @@ const HOP = new Set([
 ]);
 
 export function proxyToSite(
-  sub: string,
+  port: number,
   req: IncomingMessage,
   res: ServerResponse,
+  done: (failed: boolean) => void,
 ) {
   const headers: Record<string, string | string[]> = {};
   for (const [key, value] of Object.entries(req.headers))
@@ -31,8 +31,8 @@ export function proxyToSite(
 
   const upstream = request(
     {
-      host: resourceNames(sub).container,
-      port: 3000,
+      host: "127.0.0.1",
+      port,
       method: req.method,
       path: req.url,
       headers,
@@ -44,10 +44,12 @@ export function proxyToSite(
         if (value !== undefined && !HOP.has(key)) out[key] = value;
       res.writeHead(answer.statusCode ?? 502, out);
       answer.pipe(res);
+      answer.on("close", () => done(false));
     },
   );
   upstream.on("timeout", () => upstream.destroy(new Error("timeout")));
   upstream.on("error", () => {
+    done(true);
     if (res.headersSent) {
       res.destroy();
       return;
