@@ -52,6 +52,23 @@ offers to listen on `127.0.0.1:3000` behind it instead. Run it again to
 upgrade. More in [docs/self-hosting.md](docs/self-hosting.md), including
 moving a site from another Nordpress host.
 
+### Built-in database
+
+Nordpress can keep its database inside the site, in one folder, instead of
+using a PostgreSQL server: it's PostgreSQL itself, compiled to WebAssembly
+([PGlite](https://pglite.dev)), with full-text search and pgvector, so every
+feature works the same. A site is then one process (or one container) and
+one folder to back up. `install.sh` uses it unless you choose PostgreSQL.
+
+- **How:** leave `DATABASE_URL` unset in Docker, or run any command through
+  `node scripts/embedded-db.mjs`, for example `pnpm dev:embedded`. The data
+  lives in `EMBEDDED_DB_DIR` (`./storage/db`; `/app/storage/db` in Docker).
+- **When PostgreSQL instead:** many editors working at the same time, a busy
+  shop, or more than one server. The built-in database runs requests one at
+  a time, which suits most sites.
+- **Switching** either way: download a backup (Tools → Backups), install the
+  other way, and restore it.
+
 ### Docker
 
 Nordpress and PostgreSQL (with pgvector) in two containers:
@@ -67,7 +84,9 @@ EOF
 docker compose up -d
 ```
 
-Open `SITE_URL` and the installer takes it from there. Compose runs the published image (`ghcr.io/aleksandarsest/nordpress`), which carries a ready build, so the server never builds Next.js; the first start takes seconds. `docker compose up -d --build` builds from your checkout instead, which takes a few minutes and about 2 GB of memory on the first start.
+For the built-in database instead of PostgreSQL, use
+`docker compose -f docker-compose.embedded.yml up -d` and leave out
+`POSTGRES_PASSWORD`. Open `SITE_URL` and the installer takes it from there. Compose runs the published image (`ghcr.io/aleksandarsest/nordpress`), which carries a ready build, so the server never builds Next.js; the first start takes seconds. `docker compose up -d --build` builds from your checkout instead, which takes a few minutes and about 2 GB of memory on the first start.
 
 - **HTTPS:** add `SITE_DOMAIN=example.com` and `COMPOSE_PROFILES=https` to `.env`, and Caddy in `docker-compose.yml` gets the certificate. Or put your own reverse proxy in front of port 3000.
 - **Upgrading:** `git pull && docker compose pull && docker compose up -d` (or run `install.sh` again). Migrations run automatically.

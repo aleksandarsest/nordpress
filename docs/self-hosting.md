@@ -67,6 +67,9 @@ and changes nothing. Then it:
 
 - installs Docker if the server doesn't have it;
 - adds 1 GB of swap on servers with little memory;
+- asks where to keep the content: built into the site, in one folder
+  (the default; nothing else to run), or in a PostgreSQL server for big or
+  very busy sites (`DB=postgres` chooses it up front);
 - makes the passwords and keys, in `/opt/nordpress/.env`;
 - gets an HTTPS certificate for the domain and renews it, with Caddy;
 - downloads the ready-made site and starts it with Postgres; both start
@@ -112,6 +115,10 @@ deploy it from the Git repository. Set at least `SITE_URL`,
 Leave `COMPOSE_PROFILES` unset, since the platform provides HTTPS, and keep
 the volumes: `build` holds the built site, and `uploads` and `backups` hold
 your files.
+
+For one container and no database server, deploy
+`docker-compose.embedded.yml` instead: the database is built in and kept in
+its `db-files` volume.
 
 ## Node.js hosts
 

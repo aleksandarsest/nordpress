@@ -20,14 +20,18 @@
 #   HTTPS=caddy|none     "none" when another web server (nginx, Apache)
 #                        already uses ports 80 and 443; the site then listens
 #                        on 127.0.0.1:3000 for it
+#   DB=embedded|postgres "embedded" (the default) keeps the database inside the
+#                        site, in one folder: nothing else to run. "postgres"
+#                        adds a PostgreSQL server, for big or busy sites
 set -euo pipefail
 
 REPO=https://github.com/aleksandarsest/nordpress.git
 DIR=${DIR:-/opt/nordpress}
 DOMAIN=${DOMAIN:-}
 HTTPS=${HTTPS:-}
+DB=${DB:-}
 LOG=/var/log/nordpress-install.log
-# Free disk the install needs: the image, Postgres and room to grow
+# Free disk the install needs: the image, the database and room to grow
 NEED_DISK_MB=3000
 
 bold=$'\033[1m'
@@ -104,6 +108,8 @@ if [ -f "$DIR/.env" ]; then
   if [ -z "$HTTPS" ]; then
     grep -q '^COMPOSE_PROFILES=https' "$DIR/.env" && HTTPS=caddy || HTTPS=none
   fi
+  # An existing site keeps its database
+  grep -q '^COMPOSE_FILE=docker-compose.embedded.yml' "$DIR/.env" && DB=embedded || DB=postgres
   echo "  Upgrading the site at $DOMAIN."
 fi
 
@@ -170,6 +176,22 @@ if [ "$HTTPS" = caddy ] && [ "$DOMAIN" != localhost ] && [ -z "${SKIP_DNS_CHECK:
   fi
 fi
 
+if [ -z "$DB" ]; then
+  DB=embedded
+  if [ -n "$INTERACTIVE" ]; then
+    echo
+    echo "  Where should the site keep its content?"
+    echo "    1) Built into the site, in one folder: nothing else to run (recommended)"
+    echo "    2) A PostgreSQL database server: for big or very busy sites"
+    [ "$(ask "Choose 1 or 2 [1]: ")" = 2 ] && DB=postgres
+  fi
+fi
+case "$DB" in
+  embedded) ok "Database: built in" ;;
+  postgres) ok "Database: PostgreSQL" ;;
+  *) problem "DB must be embedded or postgres, not \"$DB\"." ;;
+esac
+
 # ---- 2. Install
 title "Installing"
 
@@ -210,7 +232,8 @@ if [ ! -f .env ]; then
 SITE_URL=https://$DOMAIN
 SITE_DOMAIN=$DOMAIN
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
+$([ "$DB" = embedded ] && echo "# The database is built in (in the db-files volume)
+COMPOSE_FILE=docker-compose.embedded.yml" || echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)")
 CRON_SECRET=$(openssl rand -hex 24)
 $([ "$HTTPS" = caddy ] && echo "COMPOSE_PROFILES=https" || echo "# Behind your own web server, which forwards to 127.0.0.1:3000")
 APP_BIND=127.0.0.1
@@ -225,7 +248,7 @@ if [ -n "${NORDPRESS_IMAGE:-}" ]; then
     echo "NORDPRESS_IMAGE=$NORDPRESS_IMAGE" >>.env
 fi
 
-step "Downloading the site (about 500 MB)" docker compose pull --quiet
+step "Downloading the site (300 to 500 MB)" docker compose pull --quiet
 step "Starting the site" docker compose up -d --remove-orphans
 
 wait_until_up() {

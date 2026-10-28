@@ -9,6 +9,13 @@
 # database, so that build needs this site's database.
 set -e
 
+# No DATABASE_URL: the built-in database, kept in /app/storage/db. The
+# script starts it and runs this file again with DATABASE_URL set.
+if [ -z "$DATABASE_URL" ]; then
+  export EMBEDDED_DB_DIR="${EMBEDDED_DB_DIR:-/app/storage/db}"
+  exec node scripts/embedded-db.mjs sh /app/docker/entrypoint.sh
+fi
+
 node scripts/migrate.mjs
 
 if [ ! -f .next/BUILD_ID ] || ! cmp -s .source-hash .next/.source-hash; then

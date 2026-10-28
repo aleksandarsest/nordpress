@@ -20,5 +20,5 @@ ENV NODE_ENV=production \
     BACKUP_DIR=/app/storage/backups
 
 EXPOSE 3000
-VOLUME ["/app/.next", "/app/storage/uploads", "/app/storage/backups"]
+VOLUME ["/app/.next", "/app/storage/uploads", "/app/storage/backups", "/app/storage/db"]
 ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]

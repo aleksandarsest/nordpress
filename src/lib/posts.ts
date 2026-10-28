@@ -606,6 +606,17 @@ export async function savePost(actor: Actor, input: SavePostInput) {
         )
       : null;
 
+  // Terms are looked up (and new tags made) first: queries inside the
+  // transaction all go through it
+  let termIds: number[] | null = null;
+  if (input.type === "post") {
+    const named = input.tags ? await ensureTags(input.tags) : [];
+    termIds = await existingTermIds(input.categoryIds ?? [], [
+      ...named,
+      ...(input.tagIds ?? []),
+    ]);
+  }
+
   const saved = await db.transaction(async (tx) => {
     let saved: Post;
     if (existing) {
@@ -644,12 +655,7 @@ export async function savePost(actor: Actor, input: SavePostInput) {
         .returning();
     }
 
-    if (input.type === "post") {
-      const named = input.tags ? await ensureTags(input.tags) : [];
-      const termIds = await existingTermIds(input.categoryIds ?? [], [
-        ...named,
-        ...(input.tagIds ?? []),
-      ]);
+    if (termIds) {
       await tx.delete(postTerms).where(eq(postTerms.postId, saved.id));
       if (termIds.length) {
         await tx

@@ -93,6 +93,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [embedded, postgres]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3
@@ -101,7 +105,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Install
-        run: sudo DOMAIN=localhost NORDPRESS_IMAGE=${{ env.IMAGE }}:${{ github.sha }} ./install.sh
+        run: sudo DOMAIN=localhost DB=${{ matrix.db }} NORDPRESS_IMAGE=${{ env.IMAGE }}:${{ github.sha }} ./install.sh
       - name: Check the site over HTTPS
         run: |
           set -e
@@ -112,6 +116,25 @@ jobs:
           ! sudo docker compose logs app | grep -q "Building Nordpress"
           # Only Caddy is reachable from outside; the app listens on 127.0.0.1
           sudo ss -ltn | grep ':3000 ' | grep -q '127.0.0.1'
+          # The chosen database, and nothing else
+          if [ "${{ matrix.db }}" = embedded ]; then
+            sudo docker compose logs app | grep -q "built-in database"
+            ! sudo docker compose ps --services | grep -qx db
+          else
+            sudo docker compose ps --services | grep -qx db
+          fi
+      - name: Restart (the database stays)
+        run: |
+          set -e
+          if [ "${{ matrix.db }}" = embedded ]; then
+            sudo docker compose exec -T app test -f /app/storage/db/PG_VERSION
+          fi
+          sudo docker compose restart app
+          for i in $(seq 1 60); do
+            curl -sk -o /dev/null https://localhost/login && break
+            sleep 2
+          done
+          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
       - name: Run it again (upgrade keeps the settings)
         run: |
           before=$(sudo grep BETTER_AUTH_SECRET .env)
