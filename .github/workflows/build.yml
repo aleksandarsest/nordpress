@@ -94,10 +94,16 @@ jobs:
           sudo --preserve-env=DATABASE_URL DOMAIN=localhost ./install.sh
       - name: Check the site over HTTPS
         run: |
-          set -e
+          set -ex
           systemctl is-active nordpress nordpress-caddy
           test "$(cat /opt/nordpress/app/.version)" = "$GITHUB_SHA"
-          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
+          # Caddy makes its local certificate on the first request
+          for i in $(seq 1 30); do
+            code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install || true)
+            [ "$code" = 200 ] && break
+            sleep 2
+          done
+          test "$code" = 200
           curl -sk https://localhost/robots.txt | grep -q "Content-Signal"
           # Only Caddy is reachable from outside; the site listens on 127.0.0.1
           sudo ss -ltnp | grep ':3000 ' | grep -q '127.0.0.1'
