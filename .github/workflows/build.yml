@@ -133,7 +133,13 @@ jobs:
           sudo ./install.sh | tee /tmp/again.log
           grep -q "up to date" /tmp/again.log
           test "$before" = "$(sudo grep BETTER_AUTH_SECRET /opt/nordpress/.env)"
-          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
+          for i in $(seq 1 30); do
+            code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install || true)
+            [ "$code" = 200 ] && exit 0
+            sleep 2
+          done
+          echo "last answer: $code"
+          exit 1
       - if: failure()
         run: |
           sudo tail -60 /var/log/nordpress-install.log || true

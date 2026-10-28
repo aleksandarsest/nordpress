@@ -411,7 +411,8 @@ else
   step "Restarting the site" systemctl restart nordpress
   step "Waiting for the site to answer" wait_until_up
 fi
-if [ "$HTTPS" = caddy ]; then step "Starting HTTPS" systemctl restart nordpress-caddy; fi
+# A reload keeps serving while it picks up the settings
+if [ "$HTTPS" = caddy ]; then step "Starting HTTPS" systemctl reload-or-restart nordpress-caddy; fi
 
 # ---- 3. Done
 title "${green}Nordpress is running.${plain}"
