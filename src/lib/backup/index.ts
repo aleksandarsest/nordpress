@@ -9,7 +9,7 @@ import { createGunzip, createGzip } from "node:zlib";
 import { db } from "@/db";
 import { ALLOWED_TYPES } from "../media";
 import { getSettings, saveSettings } from "../options";
-import { invalidate } from "../rest/core";
+import { ALL_CACHE_TAGS, invalidate } from "../rest/core";
 import { siteUrl } from "../site-url";
 import { safeKey, storage } from "../storage";
 import { type BackupStore, backupStore, isBackupName } from "./store";
@@ -34,16 +34,6 @@ const SKIPPED = new Set([
   "rate_limits",
   "post_chunks",
 ]);
-const ALL_TAGS = [
-  "options",
-  "posts",
-  "terms",
-  "comments",
-  "menus",
-  "forms",
-  "shop",
-  "inbox",
-];
 
 type Manifest = {
   format: number;
@@ -358,7 +348,7 @@ export async function restoreBackup(
     next = await entries.next();
   }
 
-  invalidate(...ALL_TAGS);
+  invalidate(...ALL_CACHE_TAGS);
   return {
     tables: restored.size,
     rows,

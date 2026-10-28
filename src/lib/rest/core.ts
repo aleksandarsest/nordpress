@@ -306,6 +306,19 @@ export function errorResponse(error: unknown): Response {
 
 // Route handlers can't use updateTag (Server Actions only); expiring the tag
 // immediately gives API clients the same read-your-own-writes behavior.
+/** Every cache tag Nordpress uses, for clearing all cached content at once. */
+export const ALL_CACHE_TAGS = [
+  "options",
+  "posts",
+  "terms",
+  "comments",
+  "menus",
+  "forms",
+  "shop",
+  "inbox",
+  "redirects",
+];
+
 export function invalidate(...tags: string[]) {
   for (const tag of tags) revalidateTag(tag, { expire: 0 });
 }
