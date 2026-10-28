@@ -1,6 +1,15 @@
 import type { JSONContent } from "@tiptap/core";
 import { Marked } from "marked";
+import { cleanSection, isSectionKind, sectionMarkdown } from "./sections";
 import { isValidVideo, videoPageUrl } from "./video-embed";
+
+// For data in an HTML attribute
+const attr = (s: string) =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 
 // Turns a stored editor document into Markdown for AI agents and other
 // text-first readers. Pure: URLs are made absolute by the caller's function.
@@ -111,6 +120,14 @@ function block(node: JSONContent, o: MarkdownOptions): string {
       return o.editable
         ? `<figure data-video="${provider}" data-id="${id}"></figure>`
         : `[Video](${videoPageUrl(provider, id)})`;
+    }
+    case "section": {
+      const kind = node.attrs?.kind;
+      if (!isSectionKind(kind)) return "";
+      const data = cleanSection(kind, node.attrs?.data);
+      if (o.editable)
+        return `<section data-section="${kind}" data-content="${attr(JSON.stringify(data))}"></section>`;
+      return sectionMarkdown(kind, data, o.absolute);
     }
     case "formEmbed": {
       const id = Number(node.attrs?.formId);

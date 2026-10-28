@@ -9,8 +9,9 @@ import { hasMemberAccess } from "@/lib/members";
 import { isMembersOnly, teaser } from "@/lib/members/access";
 import { getSettings } from "@/lib/options";
 import { applyFilters } from "@/lib/plugins";
+import { faqItems } from "@/lib/sections";
 import { getViewer } from "@/lib/session";
-import { postJsonLd } from "@/lib/structured-data";
+import { faqJsonLd, postJsonLd } from "@/lib/structured-data";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
 import type { SinglePost } from "@/lib/themes/types";
 import { getTranslations } from "@/lib/translations";
@@ -44,10 +45,15 @@ export async function SingleView({
     !preview &&
     (post.type === "post" || post.commentStatus === "open");
   const paths = preview ? null : await pathsOf(post, site);
+  // Members-only answers stay out of the page's public data
+  const faq = faqItems(post.content);
   return (
     <>
       {paths && (
         <JsonLd data={postJsonLd(post, site, paths.html, paths.markdown)} />
+      )}
+      {paths && !locked && faq.length > 0 && (
+        <JsonLd data={faqJsonLd(faq, paths.html)} />
       )}
       <div lang={translationLang(post.meta) ?? undefined} className="contents">
         <Single

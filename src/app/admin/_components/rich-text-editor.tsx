@@ -2,6 +2,7 @@
 
 import type { JSONContent } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
+import { NodeSelection } from "@tiptap/pm/state";
 import {
   type Editor,
   EditorContent,
@@ -16,10 +17,12 @@ import {
   Heading3,
   ImageIcon,
   Italic,
+  LayoutTemplate,
   Link2,
   List,
   ListOrdered,
   Minus,
+  Pencil,
   Quote,
   Redo,
   SquareCode,
@@ -38,9 +41,28 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { editorExtensions } from "@/lib/editor-extensions";
+import {
+  cleanSection,
+  isSectionKind,
+  SECTION_DEFAULTS,
+  SECTION_LABELS,
+  type SectionData,
+  type SectionKind,
+} from "@/lib/sections";
 import { cn } from "@/lib/utils";
 import { parseVideoUrl } from "@/lib/video-embed";
 import { MediaPicker } from "./media-picker";
+import { SectionEditor } from "./section-editor";
+
+const SECTION_HINTS: Record<SectionKind, string> = {
+  hero: "A big headline, text and buttons, with an optional image",
+  features: "Services, benefits or steps in columns",
+  gallery: "A grid of photos",
+  testimonials: "Quotes from happy customers",
+  faq: "Questions that open to show their answers",
+  pricing: "Plans or packages side by side",
+  cta: "A closing invitation with a button",
+};
 
 export function RichTextEditor({
   initialContent,
@@ -55,6 +77,13 @@ export function RichTextEditor({
   /** Extra controls rendered at the end of the toolbar (e.g. the AI menu). */
   toolbarEnd?: (editor: Editor) => ReactNode;
 }) {
+  // The section being edited: where it is in the document, and its content
+  const [sectionEdit, setSectionEdit] = useState<{
+    pos: number;
+    kind: SectionKind;
+    data: SectionData;
+  } | null>(null);
+
   const editor = useEditor({
     extensions: [
       ...editorExtensions,
@@ -68,6 +97,17 @@ export function RichTextEditor({
           "prose prose-neutral dark:prose-invert max-w-none min-h-[50vh] px-6 py-5 outline-none",
         "aria-label": "Content",
       },
+      // Double-clicking a section opens its form
+      handleDoubleClickOn: (_view, pos, node, nodePos, direct) => {
+        if (!direct || node.type.name !== "section") return false;
+        if (!isSectionKind(node.attrs.kind)) return false;
+        setSectionEdit({
+          pos: nodePos,
+          kind: node.attrs.kind,
+          data: cleanSection(node.attrs.kind, node.attrs.data),
+        });
+        return pos >= 0;
+      },
     },
     onUpdate: ({ editor }) => onChange(editor.getJSON()),
   });
@@ -75,22 +115,90 @@ export function RichTextEditor({
   return (
     <div className="rounded-lg border bg-background">
       {editor && (
-        <Toolbar editor={editor} end={toolbarEnd?.(editor)} forms={forms} />
+        <Toolbar
+          editor={editor}
+          end={toolbarEnd?.(editor)}
+          forms={forms}
+          onEditSection={setSectionEdit}
+        />
       )}
       <EditorContent editor={editor} />
+      {editor && sectionEdit && (
+        <SectionEditor
+          // A fresh form for each section
+          key={`${sectionEdit.pos}:${sectionEdit.kind}`}
+          kind={sectionEdit.kind}
+          initial={sectionEdit.data}
+          open
+          onOpenChange={(open) => !open && setSectionEdit(null)}
+          onSave={(data) => {
+            editor
+              .chain()
+              .focus()
+              .setNodeSelection(sectionEdit.pos)
+              .updateAttributes("section", { data })
+              .run();
+          }}
+        />
+      )}
     </div>
   );
 }
+
+type SectionEdit = { pos: number; kind: SectionKind; data: SectionData };
 
 function Toolbar({
   editor,
   end,
   forms,
+  onEditSection,
 }: {
   editor: Editor;
   end?: ReactNode;
   forms: { id: number; title: string }[];
+  onEditSection: (edit: SectionEdit) => void;
 }) {
+  const [sectionsOpen, setSectionsOpen] = useState(false);
+
+  function insertSection(kind: SectionKind) {
+    setSectionsOpen(false);
+    const data = SECTION_DEFAULTS[kind];
+    const { selection } = editor.state;
+    // With a whole block selected (another section, say), add after it
+    // rather than replacing it
+    const from =
+      selection instanceof NodeSelection ? selection.to : selection.from;
+    // Sections live at the top level of the document
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(
+        selection instanceof NodeSelection ? from : { from, to: selection.to },
+        { type: "section", attrs: { kind, data } },
+      )
+      .run();
+    // Open the form for the new section: the one of this kind nearest to
+    // where the cursor was
+    let at = -1;
+    editor.state.doc.forEach((node, offset) => {
+      if (node.type.name === "section" && node.attrs.kind === kind)
+        if (at < 0 || Math.abs(offset - from) < Math.abs(at - from))
+          at = offset;
+    });
+    if (at >= 0) onEditSection({ pos: at, kind, data });
+  }
+
+  function editSelectedSection() {
+    const { selection } = editor.state;
+    const node = editor.state.doc.nodeAt(selection.from);
+    if (node?.type.name !== "section" || !isSectionKind(node.attrs.kind))
+      return;
+    onEditSection({
+      pos: selection.from,
+      kind: node.attrs.kind,
+      data: cleanSection(node.attrs.kind, node.attrs.data),
+    });
+  }
   const [linkOpen, setLinkOpen] = useState(false);
   const [formsOpen, setFormsOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
@@ -122,6 +230,7 @@ function Toolbar({
       quote: e.isActive("blockquote"),
       codeBlock: e.isActive("codeBlock"),
       link: e.isActive("link"),
+      section: e.isActive("section"),
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
     }),
@@ -236,6 +345,26 @@ function Toolbar({
       <Tool label="Form" onClick={() => setFormsOpen(true)}>
         <ClipboardList />
       </Tool>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setSectionsOpen(true)}
+        className="h-8"
+      >
+        <LayoutTemplate /> Section
+      </Button>
+      {state.section && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={editSelectedSection}
+          className="h-8"
+        >
+          <Pencil /> Edit section
+        </Button>
+      )}
       <Divider />
       <Tool
         label="Undo"
@@ -362,6 +491,34 @@ function Toolbar({
               ))}
             </ul>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sectionsOpen} onOpenChange={setSectionsOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Add a section</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Designed blocks that follow your site's design. Double-click a
+            section in the editor to change it.
+          </p>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {(Object.keys(SECTION_LABELS) as SectionKind[]).map((kind) => (
+              <li key={kind}>
+                <button
+                  type="button"
+                  onClick={() => insertSection(kind)}
+                  className="grid w-full gap-0.5 rounded-lg border p-3 text-left text-sm transition hover:border-foreground/40 hover:bg-muted/40"
+                >
+                  <span className="font-medium">{SECTION_LABELS[kind]}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {SECTION_HINTS[kind]}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </DialogContent>
       </Dialog>
 

@@ -1,6 +1,14 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
+import type { DOMOutputSpec } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
+import {
+  cleanSection,
+  decodeSectionData,
+  isSectionKind,
+  sectionBody,
+  sectionText,
+} from "./sections";
 import { isValidVideo, parseVideoUrl, videoEmbedSrc } from "./video-embed";
 
 // An embedded form, rendered live on the site. It may only sit at the top
@@ -96,6 +104,70 @@ export const VideoEmbed = Node.create({
   renderText: () => "",
 });
 
+// A designed page section (hero, features, FAQ…). Its content is data,
+// checked by lib/sections on the way in and rendered from there, so the
+// stored HTML can't carry anything the section types don't allow.
+export const Section = Node.create({
+  name: "section",
+  group: "embed",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      kind: {
+        default: "cta",
+        parseHTML: (el) => el.getAttribute("data-section"),
+        rendered: false,
+      },
+      data: {
+        default: {},
+        parseHTML: (el) => {
+          const kind = el.getAttribute("data-section");
+          if (!isSectionKind(kind)) return {};
+          try {
+            return cleanSection(
+              kind,
+              decodeSectionData(el.getAttribute("data-content")),
+            );
+          } catch {
+            return cleanSection(kind, {});
+          }
+        },
+        rendered: false,
+      },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        tag: "section[data-section]",
+        getAttrs: (el) =>
+          isSectionKind(el.getAttribute("data-section")) ? null : false,
+      },
+    ];
+  },
+  renderHTML({ node }) {
+    const kind = isSectionKind(node.attrs.kind) ? node.attrs.kind : "cta";
+    const data = cleanSection(kind, node.attrs.data);
+    return [
+      "section",
+      {
+        class: `np-section np-section-${kind} not-prose`,
+        "data-section": kind,
+        // URL-encoded, so the stored HTML has no markup characters from
+        // the content in it for later regex passes to trip over
+        "data-content": encodeURIComponent(JSON.stringify(data)),
+      },
+      ...sectionBody(kind, data),
+    ] as DOMOutputSpec;
+  },
+  renderText: ({ node }) =>
+    isSectionKind(node.attrs.kind)
+      ? sectionText(node.attrs.kind, node.attrs.data)
+      : "",
+});
+
 const Document = Node.create({
   name: "doc",
   topNode: true,
@@ -114,4 +186,5 @@ export const editorExtensions = [
   Image,
   FormEmbed,
   VideoEmbed,
+  Section,
 ];

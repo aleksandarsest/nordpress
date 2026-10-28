@@ -1,3 +1,4 @@
+import { sectionTag } from "../sections";
 import type { SiteAnswers, SiteKind, SitePlan } from "./plan";
 
 // Starter sites written from the owner's answers, for when AI isn't set up
@@ -151,6 +152,43 @@ const aboutPage = (
   in_menu: true,
 });
 
+// Sections for home pages: a hero, items as feature cards, a closing
+// call to action. They follow whatever design the site has.
+function hero(
+  heading: string,
+  text: string,
+  primary: { label: string; url: string },
+  secondary?: { label: string; url: string },
+  eyebrow = "",
+) {
+  return sectionTag("hero", {
+    eyebrow,
+    heading,
+    text,
+    primary,
+    secondary: secondary ?? { label: "", url: "" },
+    image: { src: "", alt: "" },
+    layout: "center",
+  });
+}
+
+function features(heading: string, items: string[]) {
+  return sectionTag("features", {
+    heading,
+    intro: "",
+    items: items.map((title) => ({ title, text: "" })),
+    columns: items.length % 3 === 0 || items.length > 4 ? "3" : "2",
+  });
+}
+
+function cta(
+  heading: string,
+  text: string,
+  button: { label: string; url: string },
+) {
+  return sectionTag("cta", { heading, text, button });
+}
+
 export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
   const a = { ...answers, title: clean(answers.title) || "My site" };
   const t = a.title;
@@ -185,10 +223,20 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
             role: "home",
             title: "Home",
             content: join(
-              `## ${offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`}`,
-              a.about && sentence(a.about),
-              items.length && `### What we do\n\n${list(items)}`,
-              "[Get in touch](/contact) and tell us what you need; we'll reply quickly.",
+              hero(
+                offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`,
+                a.about ? sentence(a.about) : "",
+                { label: "Get in touch", url: "/contact" },
+                items.length
+                  ? { label: "Our services", url: "/services" }
+                  : undefined,
+              ),
+              items.length && features("What we do", items),
+              cta(
+                "Let's talk",
+                "Tell us what you need and we'll reply quickly.",
+                { label: "Contact us", url: "/contact" },
+              ),
             ),
             in_menu: true,
           },
@@ -237,9 +285,15 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
             role: "home",
             title: "Home",
             content: join(
-              `## ${offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`}`,
-              a.about && sentence(a.about),
-              "[Browse the shop](/shop) to see everything we have.",
+              hero(
+                offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`,
+                a.about ? sentence(a.about) : "",
+                { label: "Browse the shop", url: "/shop" },
+              ),
+              cta("Questions about an order?", "We're happy to help.", {
+                label: "Contact us",
+                url: "/contact",
+              }),
             ),
             in_menu: true,
           },
@@ -280,11 +334,15 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
             role: "home",
             title: "Home",
             content: join(
-              `## ${offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`}`,
-              a.about && sentence(a.about),
+              hero(
+                offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`,
+                a.about ? sentence(a.about) : "",
+                { label: "Book a table", url: "/reservations" },
+                { label: "See the menu", url: "/menu" },
+              ),
+              items.length && features("Favourites", items),
               hoursBlock(a),
               a.location && `Find us at ${clean(a.location)}.`,
-              "[Book a table](/reservations), or just drop by.",
             ),
             in_menu: true,
           },
@@ -323,10 +381,17 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
             role: "home",
             title: "Home",
             content: join(
-              `## ${offer ? `I help with ${offer}` : `Hi, I'm ${t}`}`,
-              a.about && sentence(a.about),
-              items.length && `### How I can help\n\n${list(items)}`,
-              "[Tell me about your project](/work-with-me); I'll reply within a working day.",
+              hero(
+                offer ? `I help with ${offer}` : `Hi, I'm ${t}`,
+                a.about ? sentence(a.about) : "",
+                { label: "Tell me about your project", url: "/work-with-me" },
+              ),
+              items.length && features("How I can help", items),
+              cta(
+                "Have a project in mind?",
+                "I'll reply within a working day.",
+                { label: "Get in touch", url: "/work-with-me" },
+              ),
             ),
             in_menu: true,
           },
@@ -355,11 +420,14 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
             role: "home",
             title: "Home",
             content: join(
-              `## ${t}`,
-              offer && sentence(offer),
-              a.about && sentence(a.about),
-              items.length && `### Selected work\n\n${list(items)}`,
-              "[Let's talk](/contact) about your project.",
+              hero(
+                t,
+                [offer && sentence(offer), a.about && sentence(a.about)]
+                  .filter(Boolean)
+                  .join(" "),
+                { label: "Let's talk", url: "/contact" },
+              ),
+              items.length && features("Selected work", items),
             ),
             in_menu: true,
           },
@@ -388,11 +456,18 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
             role: "home",
             title: "Home",
             content: join(
-              `## ${offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`}`,
-              a.about && sentence(a.about),
-              items.length && `### What we do\n\n${list(items)}`,
+              hero(
+                offer ? sentence(offer).replace(/\.$/, "") : `Welcome to ${t}`,
+                a.about ? sentence(a.about) : "",
+                { label: "Get involved", url: "/get-involved" },
+              ),
+              items.length && features("What we do", items),
               a.location && `We meet in ${clean(a.location)}.`,
-              "[Get in touch](/get-involved) to join, volunteer or support us.",
+              cta(
+                "Join us",
+                "Become a member, volunteer or support our work.",
+                { label: "Get involved", url: "/get-involved" },
+              ),
             ),
             in_menu: true,
           },
@@ -428,11 +503,15 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
             role: "home",
             title: "Home",
             content: join(
-              `## ${t}`,
-              [when, clean(a.location)].filter(Boolean).join(" · "),
-              offer && sentence(offer),
-              a.about && sentence(a.about),
-              "[Let us know if you're coming](/rsvp).",
+              hero(
+                t,
+                [offer && sentence(offer), a.about && sentence(a.about)]
+                  .filter(Boolean)
+                  .join(" "),
+                { label: "RSVP", url: "/rsvp" },
+                { label: "Programme", url: "/programme" },
+                [when, clean(a.location)].filter(Boolean).join(" · "),
+              ),
             ),
             in_menu: true,
           },

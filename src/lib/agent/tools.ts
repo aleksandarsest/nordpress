@@ -281,7 +281,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
       .string()
       .max(200_000)
       .describe(
-        'The full body in Markdown (GitHub flavored). Raw HTML other than basic formatting is dropped, except embeds: <div data-form="ID"></div> on its own line embeds a form, and <figure data-video="youtube" data-id="…"></figure> a video. Keep embeds from get_post where they belong.',
+        'The full body in Markdown (GitHub flavored). Raw HTML other than basic formatting is dropped, except embeds: <div data-form="ID"></div> on its own line embeds a form, and <figure data-video="youtube" data-id="…"></figure> a video. Designed sections (hero, features, gallery, testimonials, faq, pricing, cta) are <section data-section="hero" data-content="{JSON}"></section> on their own line, the JSON HTML-escaped; get_post shows existing ones, edit their JSON to change them. Keep embeds and sections from get_post where they belong.',
       ),
     excerpt: z.string().max(1000).describe("Short summary for listings"),
     slug: z

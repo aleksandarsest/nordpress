@@ -1,0 +1,420 @@
+/* Page sections (lib/sections). They read the design variables (--d-*) of
+   the Studio theme and fall back to the site's base colors elsewhere, so
+   they look at home in any theme and in the editor. */
+
+.np-section {
+  --np-accent: var(--d-accent, var(--primary));
+  --np-on-accent: var(--d-on-accent, var(--primary-foreground));
+  --np-link: var(--d-link, var(--primary));
+  --np-surface: var(--d-surface, var(--card));
+  --np-surface-2: var(--d-surface-2, var(--muted));
+  --np-border: var(--d-border, var(--border));
+  --np-muted: var(--d-muted, var(--muted-foreground));
+  --np-radius: var(--d-radius, 12px);
+  --np-button-radius: var(--d-button-radius, var(--np-radius));
+  --np-gap: calc(1.5rem * var(--d-space, 1));
+
+  margin-block: calc(3.5rem * var(--d-space, 1));
+  line-height: 1.6;
+}
+
+.np-section :where(h2, h3) {
+  font-family:
+    var(--d-font-heading, inherit), var(--d-font-body, inherit), serif;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.np-section-head {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 42rem;
+  margin: 0 auto calc(2rem * var(--d-space, 1));
+  text-align: center;
+}
+
+.np-section-title {
+  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  font-weight: 700;
+}
+
+.np-section-intro {
+  color: var(--np-muted);
+  font-size: 1.1em;
+}
+
+.np-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7em 1.4em;
+  border: 2px solid var(--np-accent);
+  border-radius: var(--np-button-radius);
+  background: var(--np-accent);
+  color: var(--np-on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  transition: filter 120ms;
+}
+
+.np-button:hover {
+  filter: brightness(1.08);
+}
+
+.np-button-secondary,
+[data-buttons="outline"] .np-button {
+  background: transparent;
+  color: var(--np-link);
+  border-color: currentColor;
+}
+
+.np-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Hero --------------------------------------------------------------- */
+
+.np-hero {
+  display: grid;
+  gap: calc(2rem * var(--d-space, 1));
+  align-items: center;
+  padding-block: calc(2rem * var(--d-space, 1));
+}
+
+.np-hero-text {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+}
+
+.np-eyebrow {
+  color: var(--np-link);
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.np-hero-title {
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 700;
+}
+
+.np-hero-lead {
+  color: var(--np-muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  max-width: 38rem;
+}
+
+.np-hero-media img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--np-radius);
+  object-fit: cover;
+}
+
+.np-hero-center .np-hero-text {
+  justify-items: center;
+  text-align: center;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+.np-hero-center .np-hero-lead {
+  margin-inline: auto;
+}
+
+.np-hero-center .np-actions {
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .np-hero-split.np-has-image {
+    grid-template-columns: 1.1fr 1fr;
+  }
+}
+
+/* Cover: the image fills the section, text on a shade over it */
+.np-hero-cover.np-has-image {
+  position: relative;
+  min-height: min(70vh, 36rem);
+  padding: clamp(1.5rem, 5vw, 4rem);
+  border-radius: var(--np-radius);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.np-hero-cover.np-has-image .np-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.np-hero-cover.np-has-image .np-hero-media img {
+  height: 100%;
+  border-radius: 0;
+}
+
+.np-hero-cover.np-has-image .np-hero-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0.25));
+}
+
+.np-hero-cover.np-has-image .np-hero-text {
+  color: #fff;
+  max-width: 40rem;
+}
+
+.np-hero-cover.np-has-image :where(.np-hero-lead, .np-eyebrow) {
+  color: rgb(255 255 255 / 0.88);
+}
+
+.np-hero-cover.np-has-image .np-button-secondary {
+  color: #fff;
+}
+
+/* Grids ---------------------------------------------------------------- */
+
+.np-grid {
+  display: grid;
+  gap: var(--np-gap);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .np-cols-2,
+  .np-cols-3,
+  .np-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .np-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .np-cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.np-feature,
+.np-quote,
+.np-plan {
+  padding: calc(1.5rem * var(--d-space, 1));
+  border: 1px solid var(--np-border);
+  border-radius: var(--np-radius);
+  background: var(--np-surface);
+}
+
+.np-feature {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  border-top: 3px solid var(--np-accent);
+}
+
+.np-feature-title {
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+.np-feature-text {
+  color: var(--np-muted);
+}
+
+/* Gallery ------------------------------------------------------------- */
+
+.np-gallery {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+}
+
+.np-gallery-item {
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.np-section .np-gallery .np-gallery-item img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--np-radius);
+}
+
+.np-gallery-item figcaption {
+  color: var(--np-muted);
+  font-size: 0.85em;
+}
+
+/* Testimonials ---------------------------------------------------------- */
+
+.np-quote {
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+  align-content: space-between;
+}
+
+.np-quote blockquote {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+.np-quote blockquote p::before {
+  content: "“";
+  color: var(--np-accent);
+  font-size: 2.2em;
+  line-height: 0;
+  vertical-align: -0.35em;
+  margin-right: 0.1em;
+}
+
+.np-quote figcaption {
+  display: grid;
+}
+
+.np-quote-role {
+  color: var(--np-muted);
+  font-size: 0.9em;
+}
+
+/* FAQ ----------------------------------------------------------------- */
+
+.np-faq {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+.np-faq-item {
+  border: 1px solid var(--np-border);
+  border-radius: var(--np-radius);
+  background: var(--np-surface);
+  padding: 0 1.25rem;
+}
+
+.np-faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 1rem;
+  font-weight: 600;
+}
+
+.np-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.np-faq-item summary::after {
+  content: "+";
+  color: var(--np-link);
+  font-size: 1.3em;
+  line-height: 1;
+}
+
+.np-faq-item[open] summary::after {
+  content: "−";
+}
+
+.np-faq-item p {
+  color: var(--np-muted);
+  padding-bottom: 1rem;
+}
+
+/* Pricing ------------------------------------------------------------- */
+
+.np-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.np-plan-highlight {
+  border: 2px solid var(--np-accent);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.08);
+}
+
+.np-plan-name {
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+.np-plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.np-price {
+  font-size: 2.2em;
+  font-weight: 700;
+  font-family: var(--d-font-heading, inherit), sans-serif;
+}
+
+.np-period {
+  color: var(--np-muted);
+}
+
+.np-plan-features {
+  display: grid;
+  gap: 0.4rem;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.np-plan-features li::before {
+  content: "✓";
+  color: var(--np-link);
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+/* Call to action -------------------------------------------------------- */
+
+.np-cta {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  text-align: center;
+  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
+  border-radius: var(--np-radius);
+  background: var(--np-surface-2);
+}
+
+.np-cta .np-actions {
+  justify-content: center;
+}
+
+/* In the editor: a section is one block you select and edit as a whole */
+.tiptap .np-section {
+  position: relative;
+  outline: 1px dashed transparent;
+  outline-offset: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tiptap .np-section:hover {
+  outline-color: var(--border);
+}
+
+.tiptap .np-section.ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+}
+
+.tiptap .np-section a {
+  pointer-events: none;
+}

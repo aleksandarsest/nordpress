@@ -336,6 +336,12 @@
   font-family: var(--d-font-heading), var(--d-font-body), serif;
 }
 
+/* Pages use the full width for sections; running text stays readable */
+.studio-page-body .prose > :not(.np-section) {
+  max-width: 46rem;
+  margin-inline: auto;
+}
+
 /* Post lists --------------------------------------------------------- */
 
 .studio-posts {

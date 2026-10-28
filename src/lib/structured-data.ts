@@ -62,6 +62,23 @@ export function postJsonLd(
   };
 }
 
+/** FAQPage data for a page's question-and-answer sections. */
+export function faqJsonLd(
+  items: { question: string; answer: string }[],
+  path: string,
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    url: siteUrl(path),
+    mainEntity: items.map((i) => ({
+      "@type": "Question",
+      name: i.question,
+      acceptedAnswer: { "@type": "Answer", text: i.answer },
+    })),
+  };
+}
+
 export function websiteJsonLd(settings: SiteSettings) {
   return {
     "@context": "https://schema.org",

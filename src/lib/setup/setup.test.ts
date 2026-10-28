@@ -44,9 +44,15 @@ describe("starter templates", () => {
         // Every link to a page goes somewhere that will exist
         const slugs = new Set(plan.pages.map((p) => slugify(p.title)));
         const bodies = [...plan.pages, ...plan.posts].map((p) => p.content);
-        for (const body of bodies)
-          for (const [, path] of body.matchAll(/\]\((\/[^)]*)\)/g))
-            expect(path === "/shop" || slugs.has(path.slice(1))).toBe(true);
+        const links = bodies.flatMap((body) => [
+          ...[...body.matchAll(/\]\((\/[^)]*)\)/g)].map((m) => m[1]),
+          // Buttons inside sections
+          ...[...body.matchAll(/&quot;url&quot;:&quot;(\/[^&]*)&quot;/g)].map(
+            (m) => m[1],
+          ),
+        ]);
+        for (const path of links)
+          expect(path === "/shop" || slugs.has(path.slice(1)), path).toBe(true);
       });
     }
   }

@@ -442,6 +442,22 @@ New sites use **Studio**, a theme you shape yourself under **Appearance → Desi
 
 Forms, the newsletter signup and comments pick up the design too. Nord and Classic stay available under **Appearance → Themes**. Theme authors: a design is a set of CSS variables (`--d-*`) and data attributes; see `src/themes/studio` and `src/lib/design`.
 
+## Page sections
+
+Pages can be built from designed sections, not just text. **Section** in the editor's toolbar adds one of seven types:
+
+- **Hero:** a headline, text, up to two buttons, and an image centered, beside the text or behind it;
+- **Features or services:** cards in 2–4 columns;
+- **Gallery:** photos with captions;
+- **Testimonials;**
+- **Questions and answers:** they open and close, and Nordpress adds FAQ structured data for search engines and AI answers;
+- **Pricing:** plans side by side, one highlighted;
+- **Call to action.**
+
+A section shows in the editor as it will look on the site. Double-click it (or use **Edit section**) to change it in a simple form, where list items can be added, reordered and removed. Sections take their colors, fonts, corners and spacing from your design, so they look right in Studio, and they work in Nord and Classic too. On phones, columns stack.
+
+A section's content is data, checked on the way in from every source (the editor, the REST API, imports and agents), so links can't run scripts and images come only from your media library or https. AI readers get a clean Markdown version. The setup wizard builds new home pages from a hero, the services as cards, and a call to action. Agents can read and write sections as `<section data-section="hero" data-content="{…}">` tags in Markdown.
+
 ## Themes and menus
 
 Themes live in `src/themes/<slug>/` and are registered in `src/themes/index.ts`. Two ship with Nordpress: **Classic**, a single-column reading theme, and **Nord**, with a dark header, a card grid and the Nord palette. Switch between them under **Appearance → Themes**; content, menus and settings stay as they are.

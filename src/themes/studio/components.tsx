@@ -270,7 +270,7 @@ function Single({
           priority
         />
       )}
-      <div className={reading ? "" : "mx-auto w-full max-w-3xl"}>{body}</div>
+      <div className={reading ? "" : "studio-page-body"}>{body}</div>
       {tags.length > 0 && (
         <ul className="flex flex-wrap justify-center gap-2 text-[0.85em]">
           {tags.map((t) => (
