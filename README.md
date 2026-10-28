@@ -45,57 +45,36 @@ Raspberry Pi…), with your domain pointing at it:
 curl -fsSL https://raw.githubusercontent.com/aleksandarsest/nordpress/main/install.sh | sudo bash
 ```
 
-It asks for the domain, installs Docker if needed, makes the passwords,
-gets an HTTPS certificate (Caddy) and starts the site; then open your domain
-to create your account. On a server that already runs nginx or Apache, it
-offers to listen on `127.0.0.1:3000` behind it instead. Run it again to
-upgrade. More in [docs/self-hosting.md](docs/self-hosting.md), including
-moving a site from another Nordpress host.
+No Docker and no database server: it installs Nordpress as a service with
+its database built in, plus Caddy for HTTPS. It checks the server first,
+asks for the domain, makes the passwords, downloads the version GitHub has
+already built (the server never compiles anything) and starts the site; then
+open your domain to create your account. On a server that already runs nginx
+or Apache, it offers to listen on `127.0.0.1` behind it instead. Run it again
+to upgrade; if a new version doesn't start, the previous one comes back. More
+in [docs/self-hosting.md](docs/self-hosting.md), including installing with no
+terminal at all and moving a site from another Nordpress host.
 
 ### Built-in database
 
 Nordpress can keep its database inside the site, in one folder, instead of
 using a PostgreSQL server: it's PostgreSQL itself, compiled to WebAssembly
 ([PGlite](https://pglite.dev)), with full-text search and pgvector, so every
-feature works the same. A site is then one process (or one container) and
-one folder to back up. `install.sh` uses it unless you choose PostgreSQL.
+feature works the same. A site is then one process and one folder to back
+up. `install.sh` uses it unless you give it a `DATABASE_URL`.
 
-- **How:** leave `DATABASE_URL` unset in Docker, or run any command through
-  `node scripts/embedded-db.mjs`, for example `pnpm dev:embedded`. The data
-  lives in `EMBEDDED_DB_DIR` (`./storage/db`; `/app/storage/db` in Docker).
+- **How:** leave `DATABASE_URL` unset and start with `scripts/serve.sh`, or
+  run any command through `node scripts/embedded-db.mjs`, for example
+  `pnpm dev:embedded`. The data lives in `EMBEDDED_DB_DIR` (`./storage/db`).
 - **When PostgreSQL instead:** many editors working at the same time, a busy
   shop, or more than one server. The built-in database runs requests one at
   a time, which suits most sites.
 - **Switching** either way: download a backup (Tools → Backups), install the
   other way, and restore it.
 
-### Docker
-
-Nordpress and PostgreSQL (with pgvector) in two containers:
-
-```bash
-git clone https://github.com/aleksandarsest/nordpress.git && cd nordpress
-cat > .env <<EOF
-SITE_URL=https://example.com
-BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-ANTHROPIC_API_KEY=
-EOF
-docker compose up -d
-```
-
-For the built-in database instead of PostgreSQL, use
-`docker compose -f docker-compose.embedded.yml up -d` and leave out
-`POSTGRES_PASSWORD`. Open `SITE_URL` and the installer takes it from there. Compose runs the published image (`ghcr.io/aleksandarsest/nordpress`), which carries a ready build, so the server never builds Next.js; the first start takes seconds. `docker compose up -d --build` builds from your checkout instead, which takes a few minutes and about 2 GB of memory on the first start.
-
-- **HTTPS:** add `SITE_DOMAIN=example.com` and `COMPOSE_PROFILES=https` to `.env`, and Caddy in `docker-compose.yml` gets the certificate. Or put your own reverse proxy in front of port 3000.
-- **Upgrading:** `git pull && docker compose pull && docker compose up -d` (or run `install.sh` again). Migrations run automatically.
-- **Backups:** the `db` volume (or `docker compose exec db pg_dump -U nordpress nordpress`) and the `uploads` volume.
-- **Optional services:** add `VOYAGE_API_KEY`, `SMTP_URL`/`MAIL_FROM` or the `S3_*` settings to `.env`; `docker-compose.yml` passes them through.
-
 ### Any Node.js host
 
-You need Node 24 and PostgreSQL 15+ with the pgvector extension (Neon, Supabase, Amazon RDS and most managed Postgres services have it).
+You need Node 24, and PostgreSQL 15+ with the pgvector extension (Neon, Supabase, Amazon RDS and most managed Postgres services have it) unless you use the built-in database.
 
 ```bash
 pnpm install

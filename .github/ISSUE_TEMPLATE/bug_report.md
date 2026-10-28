@@ -17,7 +17,7 @@ labels: bug
 **Setup**
 
 - Nordpress commit or version:
-- Running with: Docker / Node on a server / other
+- Running with: install.sh / Node on a server / other
 - Browser (for admin or site issues):
 
 <!-- Security issue? Please report it privately instead: see SECURITY.md -->

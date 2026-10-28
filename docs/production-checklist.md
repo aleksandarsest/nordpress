@@ -28,4 +28,4 @@
 
 ## Upgrading
 
-`git pull`, then `docker compose up -d --build` (or `pnpm install && pnpm migrate && pnpm build` and restart). Migrations run before the new version starts. Read the commit log for anything marked as needing action.
+run `install.sh` again (or `git pull && pnpm install && pnpm migrate && pnpm build` and restart). Migrations run before the new version starts. Read the commit log for anything marked as needing action.

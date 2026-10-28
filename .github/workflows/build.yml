@@ -1,9 +1,7 @@
-# Builds Nordpress once, from an empty site, and publishes it two ways:
-#  - the image ghcr.io/aleksandarsest/nordpress, which install.sh and
-#    docker-compose.yml run (tagged "latest" only after the installer works
-#    with it);
-#  - the "platform-build" release, for the hosted platform (platform/).
-# Servers never build Next.js themselves.
+# Builds Nordpress once, from an empty site, and publishes it as the
+# "platform-build" release, which install.sh and the hosted platform
+# (platform/) download, so servers never build Next.js themselves. Then
+# runs the installer with it on a clean server.
 name: Build
 
 on:
@@ -13,14 +11,10 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 concurrency:
   group: build
   cancel-in-progress: true
-
-env:
-  IMAGE: ghcr.io/aleksandarsest/nordpress
 
 jobs:
   build:
@@ -55,26 +49,7 @@ jobs:
       - name: Leave out caches and traces
         run: rm -rf .next/cache .next/dev .next/trace*
 
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - name: Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.release
-          build-contexts: template=.next
-          push: true
-          tags: ${{ env.IMAGE }}:${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Nordpress: a WordPress-style CMS with AI built in
-            org.opencontainers.image.licenses=MIT
-
-      - name: Platform release
+      - name: Publish the build
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -87,8 +62,9 @@ jobs:
           gh release upload platform-build nordpress-build.tar.gz --clobber
           gh release upload platform-build nordpress-build.sha --clobber
 
-  # The one-command installer, as a new server owner runs it, with this
-  # image and HTTPS through Caddy (a local certificate for "localhost")
+  # The one-command installer, as a new server owner runs it: no Docker,
+  # with this commit's build, HTTPS through Caddy (a local certificate for
+  # "localhost"), and either the built-in database or a PostgreSQL server
   installer:
     needs: build
     runs-on: ubuntu-latest
@@ -97,63 +73,59 @@ jobs:
       fail-fast: false
       matrix:
         db: [embedded, postgres]
+    services:
+      postgres:
+        image: ${{ matrix.db == 'postgres' && 'pgvector/pgvector:pg17' || '' }}
+        env:
+          POSTGRES_USER: nordpress
+          POSTGRES_PASSWORD: nordpress
+          POSTGRES_DB: nordpress
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nordpress"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
       - name: Install
-        run: sudo DOMAIN=localhost DB=${{ matrix.db }} NORDPRESS_IMAGE=${{ env.IMAGE }}:${{ github.sha }} ./install.sh
+        run: |
+          if [ "${{ matrix.db }}" = postgres ]; then
+            export DATABASE_URL=postgres://nordpress:nordpress@localhost:5432/nordpress
+          fi
+          sudo --preserve-env=DATABASE_URL DOMAIN=localhost ./install.sh
       - name: Check the site over HTTPS
         run: |
           set -e
+          systemctl is-active nordpress nordpress-caddy
+          test "$(cat /opt/nordpress/app/.version)" = "$GITHUB_SHA"
           test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
           curl -sk https://localhost/robots.txt | grep -q "Content-Signal"
-          # The ready build was used, not built here
-          sudo docker compose logs app | grep -q "Setting up this version"
-          ! sudo docker compose logs app | grep -q "Building Nordpress"
-          # Only Caddy is reachable from outside; the app listens on 127.0.0.1
-          sudo ss -ltn | grep ':3000 ' | grep -q '127.0.0.1'
-          # The chosen database, and nothing else
+          # Only Caddy is reachable from outside; the site listens on 127.0.0.1
+          sudo ss -ltnp | grep ':3000 ' | grep -q '127.0.0.1'
           if [ "${{ matrix.db }}" = embedded ]; then
-            sudo docker compose logs app | grep -q "built-in database"
-            ! sudo docker compose ps --services | grep -qx db
+            sudo test -f /opt/nordpress/data/db/PG_VERSION
+            sudo journalctl -u nordpress --no-pager | grep -q "built-in database"
           else
-            sudo docker compose ps --services | grep -qx db
+            ! sudo journalctl -u nordpress --no-pager | grep -q "built-in database"
           fi
       - name: Restart (the database stays)
         run: |
-          set -e
-          if [ "${{ matrix.db }}" = embedded ]; then
-            sudo docker compose exec -T app test -f /app/storage/db/PG_VERSION
-          fi
-          sudo docker compose restart app
+          sudo systemctl restart nordpress
           for i in $(seq 1 60); do
-            curl -sk -o /dev/null https://localhost/login && break
+            code=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install || true)
+            [ "$code" = 200 ] && exit 0
             sleep 2
           done
-          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
-      - name: Run it again (upgrade keeps the settings)
+          echo "last answer: $code"
+          exit 1
+      - name: Run it again (nothing to upgrade, settings kept)
         run: |
-          before=$(sudo grep BETTER_AUTH_SECRET .env)
-          sudo NORDPRESS_IMAGE=${{ env.IMAGE }}:${{ github.sha }} ./install.sh
-          test "$before" = "$(sudo grep BETTER_AUTH_SECRET .env)"
+          set -e
+          before=$(sudo grep BETTER_AUTH_SECRET /opt/nordpress/.env)
+          sudo ./install.sh | tee /tmp/again.log
+          grep -q "up to date" /tmp/again.log
+          test "$before" = "$(sudo grep BETTER_AUTH_SECRET /opt/nordpress/.env)"
           test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/install)" = "200"
       - if: failure()
         run: |
-          sudo tail -50 /var/log/nordpress-install.log || true
-          sudo docker compose logs | tail -200
-
-  latest:
-    needs: installer
-    runs-on: ubuntu-latest
-    steps:
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - run: docker buildx imagetools create -t ${{ env.IMAGE }}:latest ${{ env.IMAGE }}:${{ github.sha }}
+          sudo tail -60 /var/log/nordpress-install.log || true
+          sudo journalctl -u nordpress -u nordpress-caddy --no-pager | tail -100

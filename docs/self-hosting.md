@@ -1,17 +1,16 @@
 # Running Nordpress on your own hosting
 
-Nordpress is yours to run anywhere: a server at any provider, a Docker
-platform, or a Node.js host with a managed database. Pick the first option
-that fits.
+Nordpress is yours to run anywhere: a server at any provider, or a Node.js
+host. No Docker and no database server needed. Pick the first option that
+fits.
 
-| You have                                                         | Use                                                     |
-| ---------------------------------------------------------------- | ------------------------------------------------------- |
-| A domain, and no wish to use a terminal                          | [Without a terminal](#without-a-terminal)               |
-| A Linux server (VPS) and a domain                                | [One command](#one-command)                             |
-| A server that already runs nginx or Apache                       | [One command](#one-command), behind your web server     |
-| Coolify, Dokploy, CapRover, Portainer or another Docker platform | [Docker Compose](#docker-platforms)                     |
-| A Node.js host and a managed Postgres                            | [Node.js hosts](#nodejs-hosts)                          |
-| Shared PHP hosting (cPanel, Plesk) only                          | Not enough on its own; see [below](#shared-php-hosting) |
+| You have                                   | Use                                                     |
+| ------------------------------------------ | ------------------------------------------------------- |
+| A domain, and no wish to use a terminal    | [Without a terminal](#without-a-terminal)               |
+| A Linux server (VPS) and a domain          | [One command](#one-command)                             |
+| A server that already runs nginx or Apache | [One command](#one-command), behind your web server     |
+| A Node.js host and a managed Postgres      | [Node.js hosts](#nodejs-hosts)                          |
+| Shared PHP hosting (cPanel, Plesk) only    | Not enough on its own; see [below](#shared-php-hosting) |
 
 ## Without a terminal
 
@@ -65,31 +64,37 @@ The installer first checks the server: disk, memory, the web ports, and
 whether the domain points there. If something is missing it says what to do
 and changes nothing. Then it:
 
-- installs Docker if the server doesn't have it;
 - adds 1 GB of swap on servers with little memory;
-- asks where to keep the content: built into the site, in one folder
-  (the default; nothing else to run), or in a PostgreSQL server for big or
-  very busy sites (`DB=postgres` chooses it up front);
+- installs Node (its own copy, in `/opt/nordpress/node`, if the server
+  doesn't have the right version) and Caddy, each checked against its
+  published checksum;
+- downloads the version of Nordpress that GitHub has already built, so the
+  server never compiles anything;
 - makes the passwords and keys, in `/opt/nordpress/.env`;
-- gets an HTTPS certificate for the domain and renews it, with Caddy;
-- downloads the ready-made site and starts it with Postgres; both start
-  again on their own after a reboot.
+- keeps the content in `/opt/nordpress/data`: the database (built in, one
+  folder), uploads and backups. To use a PostgreSQL server instead, run the
+  installer with `DATABASE_URL=postgres://…`;
+- starts the site and Caddy as services (`nordpress` and `nordpress-caddy`)
+  that come back on their own after a reboot. Caddy gets the HTTPS
+  certificate and renews it.
 
 It shows each step with a ✓, and keeps the details in
 `/var/log/nordpress-install.log`. A fresh install takes two or three minutes.
 
 **Behind nginx or Apache.** If ports 80 and 443 are already taken, the
-installer offers to skip HTTPS and listen on `127.0.0.1:3000` instead, and
+installer offers to skip HTTPS and listen on `127.0.0.1` (port 3000 or the
+next free one) instead, and
 prints the lines to add to your web server. To choose this up front, run it
 with `HTTPS=none`.
 
 **Upgrading:** run the same command again. Your content and settings stay;
-database changes are applied on their own.
+database changes are applied on their own. If the new version doesn't
+start, the previous one comes back.
 
 **Keys:** add `ANTHROPIC_API_KEY` (AI features), `VOYAGE_API_KEY` (semantic
 search), `SMTP_URL` and `MAIL_FROM` (email), or the `S3_*` settings (media in
 object storage) to `/opt/nordpress/.env`, then run
-`cd /opt/nordpress && docker compose up -d`. `.env.example` lists them all.
+`systemctl restart nordpress`. `.env.example` lists them all.
 
 ## Moving a site here
 
@@ -106,23 +111,11 @@ From another Nordpress host, the hosted beta included:
 From WordPress, Wix, Squarespace or any other site, use **Tools → Site
 Importer** instead; see [Migrating from WordPress](migrating-from-wordpress.md).
 
-## Docker platforms
-
-`docker-compose.yml` in the repository runs Nordpress and Postgres (with
-pgvector). Coolify, Dokploy, CapRover, Portainer and similar platforms can
-deploy it from the Git repository. Set at least `SITE_URL`,
-`BETTER_AUTH_SECRET` (`openssl rand -base64 32`) and `POSTGRES_PASSWORD`.
-Leave `COMPOSE_PROFILES` unset, since the platform provides HTTPS, and keep
-the volumes: `build` holds the built site, and `uploads` and `backups` hold
-your files.
-
-For one container and no database server, deploy
-`docker-compose.embedded.yml` instead: the database is built in and kept in
-its `db-files` volume.
-
 ## Node.js hosts
 
-You need Node 24 and Postgres 15 or newer with the pgvector extension. Neon,
+You need Node 24. Use the built-in database (start with `scripts/serve.sh`
+and a writable `storage` folder), or Postgres 15 or newer with the pgvector
+extension. Neon,
 Supabase, Amazon RDS, DigitalOcean and most managed Postgres services have it.
 
 ```bash
@@ -148,9 +141,10 @@ which costs about as much as shared hosting, and [one command](#one-command).
 
 ## Keeping it healthy
 
-- **Backups** run daily into the `backups` volume (**Tools → Backups**). Copy
+- **Backups** run daily into `/opt/nordpress/data/backups` (**Tools →
+  Backups**). Copy
   them off the server from time to time; with `STORAGE_DRIVER=s3` they're
   kept in object storage instead.
-- **Logs:** `cd /opt/nordpress && docker compose logs -f app`.
+- **Logs:** `journalctl -u nordpress -f` (and `-u nordpress-caddy` for HTTPS).
 - **Before real visitors:** go through the
   [production checklist](production-checklist.md).

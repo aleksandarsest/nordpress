@@ -14,7 +14,7 @@ Read [`AGENTS.md`](AGENTS.md) before changing code: it explains the layout and t
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 ```
 
-CI runs the same checks, plus a Docker self-hosting test.
+CI runs the same checks, plus the one-command installer on a clean server, with both databases.
 
 - Keep changes focused: one fix or feature per pull request.
 - Add tests for logic that can be tested without a database (see the `*.test.ts` files next to the code).

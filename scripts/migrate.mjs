@@ -1,5 +1,5 @@
 // Applies database migrations without drizzle-kit, for production servers
-// and the Docker image: node scripts/migrate.mjs
+// and scripts/serve.sh: node scripts/migrate.mjs
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
@@ -10,7 +10,7 @@ if (!url) {
   process.exit(1);
 }
 
-// The database may still be starting (e.g. in docker compose): retry briefly
+// The database may still be starting: retry briefly
 const client = postgres(url, { max: 1, onnotice: () => {} });
 for (let attempt = 1; ; attempt++) {
   try {
