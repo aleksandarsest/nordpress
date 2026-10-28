@@ -213,22 +213,33 @@ export function navFor(
   openSuggestions = 0,
 ): NavItem[] {
   const canListUsers = hasCap(actor, "list_users");
-  // Plugin pages appear under Tools, as in WordPress
-  const toolsItem: NavDef[] = tools.length
-    ? [
-        {
-          label: "Tools",
-          href: `/admin/tools/${tools[0].plugin}/${tools[0].path}`,
-          icon: "tools",
-          cap: "read",
-          children: tools.map((t) => ({
-            label: t.title,
-            href: `/admin/tools/${t.plugin}/${t.path}`,
+  // Backups and plugin pages appear under Tools, as in WordPress
+  const admin = hasCap(actor, "manage_options");
+  const toolsItem: NavDef[] =
+    tools.length || admin
+      ? [
+          {
+            label: "Tools",
+            href: admin
+              ? "/admin/backups"
+              : `/admin/tools/${tools[0].plugin}/${tools[0].path}`,
+            icon: "tools",
             cap: "read",
-          })),
-        },
-      ]
-    : [];
+            children: [
+              {
+                label: "Backups",
+                href: "/admin/backups",
+                cap: "manage_options",
+              },
+              ...tools.map((t) => ({
+                label: t.title,
+                href: `/admin/tools/${t.plugin}/${t.path}`,
+                cap: "read" as const,
+              })),
+            ],
+          },
+        ]
+      : [];
   const items = [...NAV];
   items.splice(
     items.findIndex((i) => i.icon === "settings"),

@@ -5,6 +5,7 @@
 - [ ] **HTTPS** in front of the app (Caddy, nginx, or your host's load balancer). `SITE_URL` and `BETTER_AUTH_URL` use `https://`.
 - [ ] **A strong `BETTER_AUTH_SECRET`** (`openssl rand -base64 32`), never reused between sites.
 - [ ] **Backups** of the database (`pg_dump`, daily) and of uploads (the `uploads` volume or your S3 bucket). Try a restore once.
+- [ ] **Backups:** turn on daily backups under **Tools → Backups** (add `/api/cron/backup` to your scheduler), and download one now and then to keep somewhere else. Try a restore on a staging copy once, so you know it works before you need it.
 - [ ] **Two-step login or a passkey** for every administrator (**Profile → Security**). Set `SITE_URL` to the final domain first; passkeys are tied to it.
 - [ ] **Email** (`SMTP_URL`, `MAIL_FROM`): password resets, form notifications, order emails and the newsletter need it. Without it, emails only go to the server log.
 - [ ] **The reverse proxy sets `X-Forwarded-For`**: rate limits and comment flood protection rely on the visitor's address.

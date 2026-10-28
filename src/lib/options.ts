@@ -82,6 +82,12 @@ export type SiteSettings = {
   newsletterSignupAfterPosts: boolean;
   /** Footer of every newsletter: who sends it and a postal address. */
   newsletterFooter: string;
+  /** Automatic backups of the whole site. */
+  backupSchedule: "off" | "daily" | "weekly";
+  /** How many automatic backups to keep. */
+  backupKeep: number;
+  /** ISO time the last automatic backup started. */
+  backupLastRun: string;
   /** Let AI agents connect over MCP at /mcp with an application password. */
   mcpEnabled: boolean;
   /**
@@ -142,6 +148,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   newsletterAutoSend: false,
   newsletterSignupAfterPosts: true,
   newsletterFooter: "",
+  backupSchedule: "off",
+  backupKeep: 7,
+  backupLastRun: "",
   mcpEnabled: true,
   agentsCanPublish: false,
   activePlugins: [],

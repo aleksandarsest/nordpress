@@ -81,6 +81,17 @@ Either way, files are served at `/uploads/...` with long-lived cache headers, so
 
 Nordpress sends email for password resets ("Lost your password?" on the login screen, and **Send Reset Link** on each user in the admin). Set `SMTP_URL` to any SMTP provider (Postmark, Resend, SendGrid, Amazon SES, Mailgun, your own server) and optionally `MAIL_FROM`. Without `SMTP_URL`, emails are written to the server log, which is handy in development.
 
+## Backups
+
+**Tools → Backups** puts the whole site in one `.tar.gz` file: every table (posts, pages, comments, users, settings, forms, the shop, newsletter subscribers) and every media file.
+
+- **Download a backup now** streams a fresh backup to your browser. **Save a backup on the server** keeps one under `BACKUP_DIR` (default `./storage/backups`), or in the S3 bucket under `backups/` when media lives in S3. Uploads are public and backups never are; if your bucket is public, make sure that's limited to the `uploads/` prefix.
+- **Scheduled backups:** daily or weekly, keeping the newest few (you choose how many). They run when an administrator opens the dashboard, or on time with a call to `GET /api/cron/backup` with `Authorization: Bearer <CRON_SECRET>`. Backups you make by hand are never deleted automatically.
+- **Restore** from a saved backup or an uploaded file. You confirm by typing the site title. The current site is saved as a backup first, and the database is replaced in one transaction, so a damaged file changes nothing. Whoever is restoring stays signed in, and the search index is rebuilt afterwards.
+- **Portable:** the database is stored as one JSON object per row rather than a `pg_dump`, so backups restore across Postgres versions and onto newer Nordpress versions (new columns get their defaults). A backup from a newer Nordpress than the site is refused. Open one with any `tar` tool.
+
+Backups hold password hashes and members' email addresses, so keep downloaded copies somewhere private. Sign-in sessions aren't included.
+
 ## Sign-in security
 
 Under **Profile → Security**, everyone can protect their account with:
@@ -451,6 +462,7 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | WooCommerce (core store)                           | `products` + `orders`, `src/lib/shop`, Stripe Checkout                                      |
 | Form plugins (Contact Form 7, Gravity Forms)       | `forms` + `form_submissions`, built in                                                      |
 | Newsletter plugins (MailPoet, Jetpack Subscribe)   | `subscribers` + `newsletters`, `src/lib/newsletter`, built in                               |
+| Backup plugins (UpdraftPlus, Jetpack VaultPress)   | **Tools → Backups**, `src/lib/backup`, built in                                             |
 | Themes and `theme_mods`                            | `src/themes/*`, options saved as `theme:<slug>`                                             |
 
 ## License

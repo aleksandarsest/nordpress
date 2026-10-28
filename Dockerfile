@@ -16,8 +16,9 @@ RUN find src public scripts next.config.ts package.json pnpm-lock.yaml -type f -
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    UPLOADS_DIR=/app/storage/uploads
+    UPLOADS_DIR=/app/storage/uploads \
+    BACKUP_DIR=/app/storage/backups
 
 EXPOSE 3000
-VOLUME ["/app/.next", "/app/storage/uploads"]
+VOLUME ["/app/.next", "/app/storage/uploads", "/app/storage/backups"]
 ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]

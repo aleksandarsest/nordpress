@@ -48,8 +48,10 @@ services:
     volumes:
       - build:/app/.next
       - uploads:/app/storage/uploads
+      - backups:/app/storage/backups
 
 volumes:
   db:
   build:
   uploads:
+  backups:

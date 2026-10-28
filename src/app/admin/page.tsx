@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { runScheduledBackupIfDue } from "@/lib/backup";
 import { hasCap } from "@/lib/capabilities";
 import { countPendingComments } from "@/lib/comments";
 import { runSiteChecksIfDue } from "@/lib/inbox";
@@ -25,13 +26,16 @@ export default async function DashboardPage({
   const [stats, drafts] = canWrite
     ? await Promise.all([dashboardStats(), recentDrafts(viewer.id)])
     : [null, []];
-  // The inbox checks run at most daily, after this page has been sent
+  // The inbox checks and scheduled backups run after this page has been sent
   if (hasCap(viewer, "manage_options"))
-    after(() =>
-      runSiteChecksIfDue().catch((error) =>
+    after(async () => {
+      await runSiteChecksIfDue().catch((error) =>
         console.error("[inbox] daily checks failed", error),
-      ),
-    );
+      );
+      await runScheduledBackupIfDue().catch((error) =>
+        console.error("[backup] scheduled backup failed", error),
+      );
+    });
   const setupCard =
     hasCap(viewer, "manage_options") && !(await getSettings()).setupCompleted;
   const pendingComments = hasCap(viewer, "moderate_comments")
