@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -12,20 +13,26 @@ import {
 } from "@/components/ui/table";
 import { listAppPasswords } from "@/lib/app-passwords";
 import { listConnectedApps } from "@/lib/oauth";
+import { securityOf } from "@/lib/security";
 import { requireViewer } from "@/lib/session";
 import { getUser } from "@/lib/users";
 import { NewAppPassword } from "../_components/app-passwords";
+import { SecuritySettings } from "../_components/security-settings";
 import { UserForm } from "../_components/user-form";
 import { disconnectAppAction, revokeAppPasswordAction } from "./actions";
 
 export const metadata: Metadata = { title: "Profile" };
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: PageProps<"/admin/profile">) {
   const viewer = await requireViewer();
-  const [user, passwords, apps] = await Promise.all([
+  const { security: changed } = await searchParams;
+  const [user, passwords, apps, security] = await Promise.all([
     getUser(viewer.id),
     listAppPasswords(viewer.id),
     listConnectedApps(viewer.id),
+    securityOf(viewer.id),
   ]);
   if (!user) notFound();
 
@@ -33,6 +40,26 @@ export default async function ProfilePage() {
     <>
       <h1 className="mb-6 font-semibold text-2xl tracking-tight">Profile</h1>
       <UserForm user={user} canChangeRole={false} />
+
+      <section className="mt-12 grid max-w-3xl gap-4">
+        <h2 className="font-semibold text-lg">Security</h2>
+        {(changed === "on" || changed === "off") && (
+          <Alert>
+            <AlertDescription>
+              Two-step login is {changed === "on" ? "on" : "off"}.
+            </AlertDescription>
+          </Alert>
+        )}
+        <SecuritySettings
+          twoFactorEnabled={security.twoFactorEnabled}
+          passkeys={security.passkeys.map((p) => ({
+            id: p.id,
+            name: p.name,
+            backedUp: p.backedUp,
+            createdAt: p.createdAt ? format(p.createdAt, "MMM d, yyyy") : null,
+          }))}
+        />
+      </section>
 
       <section className="mt-12 grid max-w-3xl gap-4">
         <div>

@@ -4,11 +4,16 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { hasCap } from "@/lib/capabilities";
+import { securityOf } from "@/lib/security";
 import { requireViewer } from "@/lib/session";
 import { getUser, listUsers } from "@/lib/users";
 import { first } from "../../_components/screen";
 import { UserForm } from "../../_components/user-form";
-import { deleteUserAction, sendPasswordResetAction } from "../actions";
+import {
+  deleteUserAction,
+  resetTwoFactorAction,
+  sendPasswordResetAction,
+} from "../actions";
 
 export const metadata: Metadata = { title: "Edit User" };
 
@@ -19,7 +24,7 @@ export default async function EditUserPage({
   const viewer = await requireViewer("edit_users");
   const { id } = await params;
   if (id === viewer.id) redirect("/admin/profile");
-  const user = await getUser(id);
+  const [user, security] = await Promise.all([getUser(id), securityOf(id)]);
   if (!user) notFound();
   const others = hasCap(viewer, "delete_users")
     ? (await listUsers({})).items.filter((u) => u.id !== id)
@@ -52,6 +57,33 @@ export default async function EditUserPage({
           </SubmitButton>
         </div>
       </ActionForm>
+      <div className="mt-8 grid max-w-xl gap-2 text-sm">
+        <h2 className="font-semibold">Sign-in security</h2>
+        <p className="text-muted-foreground">
+          Two-step login is {security.twoFactorEnabled ? "on" : "off"}
+          {security.passkeys.length > 0 &&
+            `, with ${security.passkeys.length} passkey${security.passkeys.length === 1 ? "" : "s"}`}
+          .
+        </p>
+        {security.twoFactorEnabled && (
+          <ActionForm action={resetTwoFactorAction} className="grid gap-2">
+            <input type="hidden" name="id" value={user.id} />
+            <p className="text-muted-foreground">
+              If {user.name} lost their phone and their backup codes, turn it
+              off so they can sign in with their password.
+            </p>
+            <div>
+              <SubmitButton
+                variant="outline"
+                size="sm"
+                pendingLabel="Turning off…"
+              >
+                Turn Off Two-Step Login
+              </SubmitButton>
+            </div>
+          </ActionForm>
+        )}
+      </div>
       {hasCap(viewer, "delete_users") && (
         <form
           action={deleteUserAction}

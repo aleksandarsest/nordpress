@@ -12,6 +12,7 @@ import { isInstalled } from "@/lib/install";
 import { getSettings } from "@/lib/options";
 import { getViewer } from "@/lib/session";
 import { login } from "../actions";
+import { PasskeyButton } from "./passkey-button";
 
 export const metadata: Metadata = { title: "Log In" };
 
@@ -77,6 +78,11 @@ async function LoginForm({
             </Label>
             <SubmitButton pendingLabel="Logging in…">Log In</SubmitButton>
           </ActionForm>
+          <div className="my-4 flex items-center gap-3 text-muted-foreground text-xs">
+            <span className="h-px flex-1 bg-border" /> or{" "}
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <PasskeyButton redirectTo={redirectTo} />
         </CardContent>
       </Card>
       <p className="mt-4 flex justify-center gap-4 text-sm">

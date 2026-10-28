@@ -1,11 +1,19 @@
 import "server-only";
+import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { twoFactor } from "better-auth/plugins";
 import { db, schema } from "@/db";
 import type { Role } from "@/db/schema";
 import { sendPasswordResetMail } from "./mail";
 import { doAction } from "./plugins";
+import { siteUrl } from "./site-url";
+
+// Settings are async and auth is configured once at startup, so the
+// authenticator label comes from the environment (falling back to the host)
+const siteName = () =>
+  process.env.SITE_NAME || new URL(siteUrl()).hostname || "Nordpress";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -16,6 +24,8 @@ export const auth = betterAuth({
       account: schema.account,
       verification: schema.verification,
       rateLimit: schema.rateLimit,
+      twoFactor: schema.twoFactor,
+      passkey: schema.passkey,
     },
   }),
   emailAndPassword: {
@@ -50,7 +60,23 @@ export const auth = betterAuth({
       "/reset-password": { window: 15 * 60, max: 10 },
     },
   },
-  plugins: [nextCookies()],
+  plugins: [
+    twoFactor({
+      // The name authenticator apps show next to the code
+      issuer: siteName(),
+      // Off: a person types a code from the app before it's switched on
+      skipVerificationOnEnable: false,
+      backupCodeOptions: { amount: 10 },
+    }),
+    passkey({
+      // Fixed from the site address, never taken from the request
+      rpID: new URL(siteUrl()).hostname,
+      rpName: siteName(),
+      origin: new URL(siteUrl()).origin,
+    }),
+    // Must come last, so cookies set by the plugins above reach the browser
+    nextCookies(),
+  ],
 });
 
 export async function createUserWithPassword(input: {

@@ -9,6 +9,7 @@ import { hasCap } from "@/lib/capabilities";
 import { email, type FormState, formError, password, str } from "@/lib/form";
 import { mailConfigured } from "@/lib/mail";
 import { POSTS_TAG } from "@/lib/posts";
+import { resetTwoFactor } from "@/lib/security";
 import { assertCap, getViewer, PermissionError } from "@/lib/session";
 import {
   countAdministrators,
@@ -134,6 +135,24 @@ export async function sendPasswordResetAction(
       message: mailConfigured()
         ? `A password reset link was emailed to ${target.email}.`
         : "Email isn't set up (SMTP_URL), so the reset link was written to the server log instead.",
+    };
+  } catch (error) {
+    return formError(error);
+  }
+}
+
+export async function resetTwoFactorAction(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  try {
+    await assertCap("edit_users");
+    const target = await getUser(str(formData, "id"));
+    if (!target) throw new Error("User not found.");
+    await resetTwoFactor(target.id);
+    refresh();
+    return {
+      message: `Two-step login is off for ${target.name}. They can sign in with their password and set it up again.`,
     };
   } catch (error) {
     return formError(error);

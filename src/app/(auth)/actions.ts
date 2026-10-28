@@ -40,8 +40,10 @@ export async function login(
       error: `Too many login attempts. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
     };
   }
+  const target = safeRedirect(str(formData, "redirect_to"));
+  let needsCode = false;
   try {
-    await auth.api.signInEmail({
+    const result = await auth.api.signInEmail({
       body: {
         email: str(formData, "email"),
         password: str(formData, "password"),
@@ -49,9 +51,50 @@ export async function login(
       },
       headers: await headers(),
     });
+    // With two-step login on, the password only earns a short-lived
+    // challenge; the session comes after the code
+    needsCode = "twoFactorRedirect" in result && !!result.twoFactorRedirect;
   } catch (error) {
     if (error instanceof APIError) {
       return { error: "The email address or password is incorrect." };
+    }
+    return formError(error);
+  }
+  if (needsCode)
+    redirect(`/login/two-factor?redirect_to=${encodeURIComponent(target)}`);
+  redirect(target);
+}
+
+export async function verifyTwoFactorAction(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const h = await headers();
+  if (!(await rateLimit(`2fa:ip:${clientIp(h)}`, 10, 15 * 60_000)).ok)
+    return { error: "Too many attempts. Please wait a few minutes." };
+  const code = str(formData, "code").replace(/\s+/g, "");
+  const trustDevice = formData.get("trust") === "on";
+  try {
+    if (formData.get("backup") === "1")
+      await auth.api.verifyBackupCode({
+        body: { code, trustDevice },
+        headers: h,
+      });
+    else await auth.api.verifyTOTP({ body: { code, trustDevice }, headers: h });
+  } catch (error) {
+    if (error instanceof APIError) {
+      const code = (error.body as { code?: string } | undefined)?.code;
+      return {
+        error:
+          code === "INVALID_TWO_FACTOR_COOKIE"
+            ? "Your sign-in expired. Log in with your password again."
+            : code === "ACCOUNT_TEMPORARILY_LOCKED" ||
+                code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE"
+              ? "Too many wrong codes. Log in with your password again in a few minutes."
+              : code === "INVALID_BACKUP_CODE"
+                ? "That backup code isn't right, or it was already used."
+                : "That code isn't right. Check the time on your phone and try again.",
+      };
     }
     return formError(error);
   }

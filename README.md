@@ -81,6 +81,16 @@ Either way, files are served at `/uploads/...` with long-lived cache headers, so
 
 Nordpress sends email for password resets ("Lost your password?" on the login screen, and **Send Reset Link** on each user in the admin). Set `SMTP_URL` to any SMTP provider (Postmark, Resend, SendGrid, Amazon SES, Mailgun, your own server) and optionally `MAIL_FROM`. Without `SMTP_URL`, emails are written to the server log, which is handy in development.
 
+## Sign-in security
+
+Under **Profile → Security**, everyone can protect their account with:
+
+- **Two-step login:** a code from an authenticator app (1Password, Google Authenticator, Authy…) after the password. Setup shows a QR code and 10 single-use backup codes, and it's only switched on once a code from the app has been checked. At sign-in, people can tick **Don't ask again on this device for 30 days**. Wrong codes are rate limited, and the account locks briefly after repeated failures.
+- **Passkeys:** sign in with a fingerprint, face or device PIN using **Log in with a passkey**, with no password at all. Passkeys are tied to the host name in `SITE_URL`, so changing the domain means adding them again.
+- **Help for the locked out:** an administrator can turn off two-step login for someone who lost their phone and backup codes, on that user's edit page.
+
+As in WordPress, application passwords skip two-step login, since scripts can't type codes. Keep them scoped to what needs them, and revoke them under **Profile** when you're done. MCP apps connected with OAuth do go through it, because connecting means signing in.
+
 ## Rate limits
 
 Logins (per IP and per account), password reset requests, Better Auth's own endpoints and the site chat are rate limited. Counters live in Postgres (`rate_limits` and `rate_limit` tables), so the limits hold across any number of server instances without Redis. Set `RATE_LIMIT_STORE=memory` to keep them in process memory on a single server. Client IPs come from `X-Forwarded-For`, so run behind a proxy that sets it.
