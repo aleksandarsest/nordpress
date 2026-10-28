@@ -17,6 +17,7 @@ import {
   trashPost,
 } from "@/lib/posts";
 import { createPreview } from "@/lib/previews";
+import { cleanSeo } from "@/lib/seo";
 import { getViewer, PermissionError } from "@/lib/session";
 import { TERMS_TAG } from "@/lib/terms";
 import { createTranslation } from "@/lib/translations";
@@ -75,6 +76,12 @@ export async function savePostAction(
         .filter(Number.isInteger),
       tags: str(formData, "tags").split(","),
       membersOnly: formData.get("members_only") === "on",
+      seo: cleanSeo({
+        title: str(formData, "seo_title"),
+        description: str(formData, "seo_description"),
+        imageId: optionalId(formData, "seo_image_id"),
+        noindex: formData.get("seo_noindex") === "on",
+      }),
       ...(formData.get("ai_assisted") === "1" && {
         aiSource: "writing-assistant" as const,
       }),

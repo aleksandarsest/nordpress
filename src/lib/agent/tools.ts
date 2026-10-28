@@ -40,7 +40,14 @@ import {
   savePost,
   trashPost,
 } from "../posts";
+import {
+  listNotFound,
+  RedirectRuleError,
+  saveRedirect,
+  suggestTargets,
+} from "../redirects";
 import { invalidate } from "../rest/core";
+import { cleanSeo, seoOf } from "../seo";
 import type { Viewer } from "../session";
 import {
   adminListProducts,
@@ -296,6 +303,81 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
       ),
   };
 
+  const seoFields = {
+    seo_title: z
+      .string()
+      .max(200)
+      .describe(
+        "Title for search results and link previews, at most 60 characters; empty uses the post title",
+      ),
+    seo_description: z
+      .string()
+      .max(400)
+      .describe(
+        "Meta description, 120 to 155 characters; empty uses the excerpt",
+      ),
+    hide_from_search: z
+      .boolean()
+      .describe("Keep it out of search engines, the sitemap and llms.txt"),
+  };
+
+  // The SEO settings after a change, or undefined when none was asked for
+  function seoChange(
+    prev: unknown,
+    args: {
+      seo_title?: string;
+      seo_description?: string;
+      hide_from_search?: boolean;
+    },
+  ) {
+    if (
+      args.seo_title === undefined &&
+      args.seo_description === undefined &&
+      args.hide_from_search === undefined
+    )
+      return undefined;
+    const before = seoOf(prev);
+    return cleanSeo({
+      title: args.seo_title ?? before.title,
+      description: args.seo_description ?? before.description,
+      imageId: before.imageId,
+      noindex: args.hide_from_search ?? before.noindex,
+    });
+  }
+
+  const seoDetails = (
+    prev: unknown,
+    args: {
+      seo_title?: string;
+      seo_description?: string;
+      hide_from_search?: boolean;
+    },
+  ): ActionPreview["details"] => {
+    const after = seoChange(prev, args);
+    if (!after) return [];
+    const before = seoOf(prev);
+    const details: ActionPreview["details"] = [];
+    if (args.seo_title !== undefined)
+      details.push({
+        label: "Search title",
+        before: before.title ?? null,
+        after: after.title ?? "(the post title)",
+      });
+    if (args.seo_description !== undefined)
+      details.push({
+        label: "Search description",
+        before: before.description ?? null,
+        after: after.description ?? "(the excerpt)",
+      });
+    if (args.hide_from_search !== undefined)
+      details.push({
+        label: "Search engines",
+        before: before.noindex ? "Hidden" : "Shown",
+        after: after.noindex ? "Hidden" : "Shown",
+      });
+    return details;
+  };
+
   const createInput = {
     type: z.enum(["post", "page"]).default("post"),
     title: writeFields.title,
@@ -312,6 +394,9 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
       .optional()
       .describe("Parent page (pages only)"),
     publish_at: writeFields.publish_at.optional(),
+    seo_title: seoFields.seo_title.optional(),
+    seo_description: seoFields.seo_description.optional(),
+    hide_from_search: seoFields.hide_from_search.optional(),
   };
 
   const updateInput = {
@@ -324,6 +409,9 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     categories: writeFields.categories.optional(),
     tags: writeFields.tags.optional(),
     publish_at: writeFields.publish_at.optional(),
+    seo_title: seoFields.seo_title.optional(),
+    seo_description: seoFields.seo_description.optional(),
+    hide_from_search: seoFields.hide_from_search.optional(),
   };
 
   async function mediaFor(id: number) {
@@ -531,6 +619,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
           }),
           ...(post.type === "page" && { parent_id: post.parentId }),
           comments: post.commentStatus,
+          seo: seoOf(post.meta),
           ...(settings.languages.length > 0 && {
             translations: (await getTranslations(post))
               .filter((t) => t.id !== post.id)
@@ -603,6 +692,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
             ...(args.excerpt
               ? [{ label: "Excerpt", after: args.excerpt }]
               : []),
+            ...seoDetails(null, args),
           ],
           body: { after: args.content },
           ...(cats?.missing.length && {
@@ -632,6 +722,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
                   : []
               : [],
           tags: args.type === "post" ? args.tags : undefined,
+          seo: seoChange(null, args),
           aiSource: aiSourceOf(ctx),
         });
         invalidate(POSTS_TAG, TERMS_TAG);
@@ -693,6 +784,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
             before: tags.join(", "),
             after: args.tags.join(", "),
           });
+        details.push(...seoDetails(post.meta, args));
         return {
           summary: `Update ${post.type} “${post.title}”`,
           details,
@@ -736,6 +828,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
               ? (await categoryIds(args.categories, true)).ids
               : existing.categoryIds,
           tags: type === "post" ? (args.tags ?? existing.tags) : undefined,
+          seo: seoChange(prev.meta, args),
           aiSource: aiSourceOf(ctx),
         });
         invalidate(POSTS_TAG, TERMS_TAG);
@@ -1472,6 +1565,84 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     }),
 
     // -----------------------------------------------------------------------
+    // Redirects
+    // -----------------------------------------------------------------------
+    defineTool({
+      name: "list_not_found",
+      title: "Find broken addresses",
+      description:
+        "Addresses visitors asked for that don't exist (404s), most requested first, with the published post each probably meant. Fix the ones worth fixing with add_redirect.",
+      input: {},
+      kind: "read",
+      run: async () => {
+        need("manage_options", "manage redirects");
+        const missing = await listNotFound(30);
+        const suggested = await suggestTargets(missing.map((m) => m.path));
+        return {
+          text: json(
+            missing.map((m) => ({
+              path: m.path,
+              requests: m.hits,
+              last_seen: m.lastSeenAt.toISOString(),
+              linked_from: m.referrer ?? undefined,
+              probably_meant: suggested.get(m.path) ?? undefined,
+            })),
+          ),
+        };
+      },
+    }),
+
+    defineTool({
+      name: "add_redirect",
+      title: "Add a redirect",
+      description:
+        "Sends visitors and search engines from an old address on this site to a new one. End the old address with * to redirect everything below it (/old-blog/* to /blog/* keeps the rest of the address).",
+      input: {
+        from: z.string().min(1).max(500).describe("e.g. /old-post"),
+        to: z
+          .string()
+          .min(1)
+          .max(1000)
+          .describe("A path on this site or a full https:// URL"),
+        permanent: z
+          .boolean()
+          .default(true)
+          .describe("False for a temporary (302) redirect"),
+      },
+      kind: "write",
+      preview: async ({ from, to, permanent }) => {
+        need("manage_options", "manage redirects");
+        assertLiveAllowed("add redirects");
+        return {
+          summary: `Redirect ${from} to ${to}`,
+          details: [
+            {
+              label: "Kind",
+              after: permanent ? "Permanent (301)" : "Temporary (302)",
+            },
+          ],
+          warning:
+            "Visitors to the old address are sent to the new one right away.",
+        };
+      },
+      run: async ({ from, to, permanent }) => {
+        need("manage_options", "manage redirects");
+        assertLiveAllowed("add redirects");
+        const row = await saveRedirect({
+          source: from,
+          target: to,
+          status: permanent ? 301 : 302,
+        });
+        return {
+          text: json({
+            result: `${row.source} now redirects to ${row.target}.`,
+          }),
+          target: `redirect:${row.id}`,
+        };
+      },
+    }),
+
+    // -----------------------------------------------------------------------
     // Site upkeep
     // -----------------------------------------------------------------------
     defineTool({
@@ -1577,6 +1748,13 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     return { post, lang, existing: existing?.id };
   }
 
+  function assertLiveAllowed(what: string) {
+    if (!ctx.canChangeLive)
+      throw denied(
+        `Agents can't ${what} here, since that changes the live site. ${POLICY_HINT}`,
+      );
+  }
+
   async function emailTarget(id: number) {
     need("edit_others_posts", "send the newsletter");
     if (!ctx.canChangeLive)
@@ -1623,6 +1801,7 @@ function messageOf(error: unknown) {
     error instanceof CommentError ||
     error instanceof FormError ||
     error instanceof NewsletterError ||
+    error instanceof RedirectRuleError ||
     error instanceof FormDefinitionError
   )
     return error.message;

@@ -7,7 +7,12 @@ import { isMembersOnly, teaser } from "./members/access";
 import type { SiteSettings } from "./options";
 import { authorPath, postPath, resolveRoute, termPath } from "./permalinks";
 import { applyFilters } from "./plugins";
-import { getPageTree, getPublished, listPublished } from "./posts";
+import {
+  getPageTree,
+  getPublished,
+  hiddenFromSearch,
+  listPublished,
+} from "./posts";
 import { listShopProducts, type ShopProduct } from "./shop";
 import { formatMoney } from "./shop/money";
 import { siteUrl } from "./site-url";
@@ -204,11 +209,17 @@ const FULL_POSTS = 100;
 
 // https://llmstxt.org: a Markdown index of the site for language models.
 export async function llmsTxt(settings: SiteSettings) {
-  const [pages, posts, shop] = await Promise.all([
+  const [allPages, published, shop, hidden] = await Promise.all([
     getPageTree(),
     listPublished({ perPage: LLMS_POSTS }),
     listShopProducts(),
+    hiddenFromSearch(),
   ]);
+  // Pages hidden from search engines stay out of the AI index too
+  const pages = allPages.filter((p) => !hidden.has(p.id));
+  const posts = {
+    items: published.items.filter((p) => !hidden.has(p.id)),
+  };
   const link = (title: string, path: string, note?: string) =>
     `- [${title || "(no title)"}](${siteUrl(markdownPath(path))})${note ? `: ${note}` : ""}`;
   const sections = [
@@ -251,11 +262,15 @@ export async function llmsTxt(settings: SiteSettings) {
 }
 
 export async function llmsFullTxt(settings: SiteSettings) {
-  const [pages, posts] = await Promise.all([
+  const [pages, posts, hidden] = await Promise.all([
     getPageTree(),
     listPublished({ perPage: FULL_POSTS }),
+    hiddenFromSearch(),
   ]);
-  const ids = [...pages.map((p) => p.id), ...posts.items.map((p) => p.id)];
+  const ids = [
+    ...pages.map((p) => p.id),
+    ...posts.items.map((p) => p.id),
+  ].filter((id) => !hidden.has(id));
   const docs: string[] = [];
   for (const id of ids) {
     const post = await getPublished({ id });

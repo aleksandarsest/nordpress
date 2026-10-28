@@ -36,6 +36,7 @@ import { onPostSaved } from "./newsletter";
 import { getSettings } from "./options";
 import { postPath } from "./permalinks";
 import { doAction } from "./plugins";
+import type { SeoMeta } from "./seo";
 import { siteUrl } from "./site-url";
 import { slugify, uniqueSlug } from "./slug";
 import { ensureTags, getPostTerms } from "./terms";
@@ -230,6 +231,18 @@ export async function getPublished(lookup: PublishedLookup) {
     featuredHeight: row.featuredHeight,
     terms: termsByPost.get(row.post.id) ?? [],
   };
+}
+
+/** Live posts and pages marked "Hide from search engines". */
+export async function hiddenFromSearch(): Promise<Set<number>> {
+  "use cache";
+  cacheTag(POSTS_TAG);
+  cacheLife("hours");
+  const rows = await db
+    .select({ id: posts.id })
+    .from(posts)
+    .where(and(isLive, sql`(${posts.meta}->'seo'->>'noindex')::boolean`));
+  return new Set(rows.map((r) => r.id));
 }
 
 export type PageNode = {
@@ -439,6 +452,8 @@ export type SavePostInput = {
   aiSource?: AiSource;
   /** Only members (and staff) see the full content; left as is when omitted. */
   membersOnly?: boolean;
+  /** Search and social settings; left as is when omitted. */
+  seo?: SeoMeta;
 };
 
 export class PostError extends Error {}
@@ -563,7 +578,9 @@ export async function savePost(actor: Actor, input: SavePostInput) {
       input.type === "post" && hasCap(actor, "edit_others_posts")
         ? !!input.sticky
         : (existing?.sticky ?? false),
-    ...((input.aiSource || input.membersOnly !== undefined) && {
+    ...((input.aiSource ||
+      input.membersOnly !== undefined ||
+      input.seo !== undefined) && {
       meta: {
         ...(input.aiSource
           ? withAiSource(existing?.meta, input.aiSource)
@@ -571,9 +588,23 @@ export async function savePost(actor: Actor, input: SavePostInput) {
         ...(input.membersOnly !== undefined && {
           membersOnly: input.membersOnly,
         }),
+        ...(input.seo !== undefined && { seo: input.seo }),
       },
     }),
   };
+
+  // Where a live post is now, so an address change can leave a redirect
+  const live = (status: Post["status"]) =>
+    status === "publish" || status === "future";
+  const tree = existing && live(existing.status) ? await getPageTree() : [];
+  const oldPath =
+    existing && live(existing.status)
+      ? postPath(
+          existing,
+          (await getSettings()).permalinkStructure,
+          tree.find((p) => p.id === existing.id)?.path,
+        )
+      : null;
 
   const saved = await db.transaction(async (tx) => {
     let saved: Post;
@@ -642,6 +673,25 @@ export async function savePost(actor: Actor, input: SavePostInput) {
     source: input.source ?? "app",
   });
   await onPostSaved(saved, existing?.status ?? null, input.source ?? "app");
+  if (oldPath && live(saved.status) && input.source !== "import") {
+    // The page tree is cached from before the save; build the new path from it
+    const parentPath = saved.parentId
+      ? tree.find((p) => p.id === saved.parentId)?.path
+      : undefined;
+    const newPath = postPath(
+      saved,
+      settings.permalinkStructure,
+      saved.type === "page"
+        ? parentPath
+          ? `${parentPath}/${saved.slug}`
+          : saved.slug
+        : undefined,
+    );
+    if (newPath !== oldPath) {
+      const { redirectMovedContent } = await import("./redirects");
+      await redirectMovedContent(oldPath, newPath);
+    }
+  }
   return saved;
 }
 

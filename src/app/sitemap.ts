@@ -1,20 +1,24 @@
 import type { MetadataRoute } from "next";
 import { getSettings } from "@/lib/options";
 import { postPath, termPath } from "@/lib/permalinks";
-import { getPageTree, listPublished } from "@/lib/posts";
+import { getPageTree, hiddenFromSearch, listPublished } from "@/lib/posts";
 import { listShopProducts } from "@/lib/shop";
 import { siteUrl } from "@/lib/site-url";
 import { listTerms } from "@/lib/terms";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [settings, pages, posts, categories, tags, shop] = await Promise.all([
-    getSettings(),
-    getPageTree(),
-    listPublished({ perPage: 5000 }),
-    listTerms("category"),
-    listTerms("post_tag"),
-    listShopProducts(),
-  ]);
+  const [settings, allPages, published, categories, tags, shop, hidden] =
+    await Promise.all([
+      getSettings(),
+      getPageTree(),
+      listPublished({ perPage: 5000 }),
+      listTerms("category"),
+      listTerms("post_tag"),
+      listShopProducts(),
+      hiddenFromSearch(),
+    ]);
+  const pages = allPages.filter((p) => !hidden.has(p.id));
+  const posts = published.items.filter((p) => !hidden.has(p.id));
   const translated = settings.languages.length
     ? await Promise.all(
         settings.languages.map((lang) =>
@@ -29,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...pages
       .filter((p) => p.id !== settings.pageOnFront)
       .map((p) => ({ url: siteUrl(`/${p.path}`) })),
-    ...posts.items.map((p) => ({
+    ...posts.map((p) => ({
       url: siteUrl(postPath(p, settings.permalinkStructure)),
       lastModified: p.updatedAt,
     })),
@@ -37,10 +41,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter((t) => t.count > 0)
       .map((t) => ({ url: siteUrl(termPath(t.taxonomy, t.slug)) })),
     ...translated.flatMap((list) =>
-      list.items.map((p) => ({
-        url: siteUrl(postPath(p, settings.permalinkStructure)),
-        lastModified: p.updatedAt,
-      })),
+      list.items
+        .filter((p) => !hidden.has(p.id))
+        .map((p) => ({
+          url: siteUrl(postPath(p, settings.permalinkStructure)),
+          lastModified: p.updatedAt,
+        })),
     ),
     ...(shop.length ? [{ url: siteUrl("/shop") }] : []),
     ...shop.map((p) => ({

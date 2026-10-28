@@ -120,6 +120,13 @@
       "when": 1793180005094,
       "tag": "0016_strange_epoch",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793182546598,
+      "tag": "0017_tough_the_renegades",
+      "breakpoints": true
     }
   ]
 }

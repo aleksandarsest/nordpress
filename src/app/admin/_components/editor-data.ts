@@ -8,9 +8,11 @@ import { newsletterForPost, subscriberCounts } from "@/lib/newsletter";
 import { getSettings } from "@/lib/options";
 import { postPath } from "@/lib/permalinks";
 import { getPageTree, listParentCandidates, type PostType } from "@/lib/posts";
+import { seoOf } from "@/lib/seo";
 import { listTerms } from "@/lib/terms";
 import { getTranslations } from "@/lib/translations";
 import type { EditorOptions } from "./post-editor";
+import type { EditorSeo } from "./seo-card";
 
 export async function editorOptions(
   actor: Actor,
@@ -115,4 +117,15 @@ export async function featuredUrl(id: number | null) {
   if (!id) return null;
   const item = await getMedia(id);
   return item ? mediaUrl(item.path) : null;
+}
+
+export async function editorSeo(meta: unknown): Promise<EditorSeo> {
+  const seo = seoOf(meta);
+  return {
+    title: seo.title ?? "",
+    description: seo.description ?? "",
+    imageId: seo.imageId ?? null,
+    imageUrl: await featuredUrl(seo.imageId ?? null),
+    noindex: seo.noindex ?? false,
+  };
 }

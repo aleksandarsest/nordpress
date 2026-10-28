@@ -3,7 +3,11 @@
 import { refresh, updateTag } from "next/cache";
 import { generateAltText, supportsAltText } from "@/lib/ai/alt-text";
 import { AiError } from "@/lib/ai/client";
-import { type PostSuggestions, suggestForPost } from "@/lib/ai/suggest";
+import {
+  type PostSuggestions,
+  suggestForPost,
+  suggestSeo,
+} from "@/lib/ai/suggest";
 import { hasCap } from "@/lib/capabilities";
 import { getMedia, listMedia, updateMedia } from "@/lib/media";
 import { POSTS_TAG } from "@/lib/posts";
@@ -96,6 +100,27 @@ export async function bulkAltTextAction(): Promise<
     return {
       ok: true,
       data: { updated, failed, remaining: missing.length > BULK_LIMIT },
+    };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function suggestSeoAction(input: {
+  title: string;
+  contentText: string;
+}): Promise<Result<{ title: string; description: string }>> {
+  try {
+    const viewer = await assertCap("edit_posts");
+    return {
+      ok: true,
+      data: await suggestSeo(
+        {
+          title: String(input.title).slice(0, 1000),
+          contentText: String(input.contentText).slice(0, 400_000),
+        },
+        viewer.id,
+      ),
     };
   } catch (error) {
     return fail(error);

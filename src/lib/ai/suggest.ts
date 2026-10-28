@@ -150,3 +150,75 @@ export async function suggestForPost(
     throw toAiError(error);
   }
 }
+
+const SeoSchema = z.object({
+  title: z
+    .string()
+    .describe(
+      "A search result title of at most 60 characters with the main topic early",
+    ),
+  description: z
+    .string()
+    .describe(
+      "A meta description of 120 to 155 characters that tells searchers what they get",
+    ),
+});
+
+const SEO_SYSTEM = `You write the search result title and meta description for a post or page on a website.
+
+The title says what the page is about in at most 60 characters, with the words people would search for early on; don't add the site name. The description is 120 to 155 characters: specific about what the reader gets, honest, no clickbait, no quotes around it. Write in the same language as the post.`;
+
+export async function suggestSeo(
+  input: { title: string; contentText: string },
+  userId: string,
+) {
+  if (input.contentText.trim().length < 40)
+    throw new AiError(
+      "Write a little more first; there isn't enough content to analyze.",
+    );
+  let model = "";
+  try {
+    const ctx = await aiContext();
+    model = ctx.model;
+    const response = await ctx.client.beta.messages.parse({
+      model: ctx.model,
+      max_tokens: 2000,
+      output_config: { effort: "low", format: betaZodOutputFormat(SeoSchema) },
+      system: withGuidance(SEO_SYSTEM, ctx.settings),
+      messages: [
+        {
+          role: "user",
+          content: `<post_title>${input.title}</post_title>\n<post>\n${input.contentText.slice(0, 30_000)}\n</post>`,
+        },
+      ],
+      ...fallbackParams(ctx.model),
+    });
+    await recordUsage({
+      userId,
+      feature: "suggest",
+      model: response.model,
+      usage: response.usage,
+      outcome: response.stop_reason === "refusal" ? "refused" : "ok",
+    });
+    if (response.stop_reason === "refusal") throw new AiError(REFUSAL_MESSAGE);
+    const parsed = response.parsed_output;
+    if (!parsed)
+      throw new AiError(
+        "The AI returned an unexpected answer. Please try again.",
+      );
+    return {
+      title: parsed.title.trim().slice(0, 200),
+      description: parsed.description.trim().slice(0, 400),
+    };
+  } catch (error) {
+    if (error instanceof AiError) throw error;
+    if (model)
+      await recordUsage({
+        userId,
+        feature: "suggest",
+        model,
+        outcome: "error",
+      });
+    throw toAiError(error);
+  }
+}

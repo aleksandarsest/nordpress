@@ -868,6 +868,42 @@ export const newsletters = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Redirects, and the 404s that show where one is missing
+// ---------------------------------------------------------------------------
+
+export const redirects = pgTable("redirects", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  // A site path like "/old-post", or "/old-blog/*" for everything below it
+  source: text("source").notNull().unique(),
+  // A path on this site or a full URL; "*" takes what the source's "*" matched
+  target: text("target").notNull(),
+  // 301 (moved for good) or 302 (temporarily)
+  status: integer("status").notNull().default(301),
+  // "manual", "auto" (a post's address changed) or "import"
+  origin: text("origin").notNull().default("manual"),
+  hits: integer("hits").notNull().default(0),
+  lastHitAt: timestamp("last_hit_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const notFoundLog = pgTable(
+  "not_found_log",
+  {
+    path: text("path").primaryKey(),
+    hits: integer("hits").notNull().default(1),
+    // The most recent page that linked here, when the browser said
+    referrer: text("referrer"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("not_found_log_hits_idx").on(t.hits)],
+);
+
+// ---------------------------------------------------------------------------
 // Site options (the wp_options equivalent)
 // ---------------------------------------------------------------------------
 
@@ -900,3 +936,4 @@ export type Membership = typeof memberships.$inferSelect;
 export type Subscriber = typeof subscribers.$inferSelect;
 export type SubscriberStatus = (typeof subscriberStatusEnum.enumValues)[number];
 export type Newsletter = typeof newsletters.$inferSelect;
+export type Redirect = typeof redirects.$inferSelect;

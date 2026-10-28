@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { getSettings } from "@/lib/options";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,8 +18,17 @@ const geistMono = Geist_Mono({
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   return {
+    // Makes relative image and page addresses in metadata absolute
+    metadataBase: new URL(siteUrl("/")),
     title: { default: settings.title, template: `%s – ${settings.title}` },
     description: settings.tagline,
+    openGraph: {
+      siteName: settings.title,
+      title: settings.title,
+      description: settings.tagline,
+      type: "website",
+    },
+    twitter: { card: "summary" },
     robots: settings.blogPublic ? undefined : { index: false, follow: false },
     alternates: {
       types: {

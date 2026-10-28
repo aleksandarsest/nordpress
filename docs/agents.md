@@ -48,6 +48,7 @@ Subscriptions can't be used as API keys: Claude and ChatGPT plans cover their ow
 | `get_form_responses`, `create_form`                     | Editor or above                                                          |
 | `get_site_tasks`, `resolve_inbox_item`                  | any account (each list shows what that role may fix)                     |
 | `get_newsletter`, `email_post`                          | Editor or above; emailing follows the live-site policy                   |
+| `list_not_found`, `add_redirect`                        | Administrator; adding follows the live-site policy                       |
 | `search_products`, `save_product`                       | Editor or above                                                          |
 | `list_orders`                                           | Administrator                                                            |
 

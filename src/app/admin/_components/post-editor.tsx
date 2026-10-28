@@ -20,6 +20,7 @@ import { AiSuggestions, type SuggestionTargets } from "./ai-suggestions";
 import { MediaPicker } from "./media-picker";
 import { NewsletterCard, type NewsletterInfo } from "./newsletter-card";
 import { RichTextEditor } from "./rich-text-editor";
+import { type EditorSeo, SeoCard } from "./seo-card";
 import { TranslationsCard } from "./translations-card";
 
 export type EditorPost = {
@@ -41,6 +42,7 @@ export type EditorPost = {
   tags: string[];
   /** Only members see the full content. */
   membersOnly: boolean;
+  seo: EditorSeo;
 };
 
 export type EditorOptions = {
@@ -490,6 +492,23 @@ export function PostEditor({
             </CardContent>
           </Card>
         )}
+
+        <SeoCard
+          initial={post.seo}
+          postTitle={title}
+          excerpt={excerpt}
+          address={options.viewUrl ?? `${options.permalinkBase}${slug || "…"}`}
+          ai={options.ai}
+          read={() => ({
+            title,
+            contentText: content
+              ? generateText(content, editorExtensions, {
+                  blockSeparator: "\n\n",
+                })
+              : "",
+          })}
+          onChange={() => setDirty(true)}
+        />
 
         <Card>
           <CardHeader>

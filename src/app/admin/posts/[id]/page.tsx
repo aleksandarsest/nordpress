@@ -8,7 +8,11 @@ import { canOnPost } from "@/lib/capabilities";
 import { isMembersOnly } from "@/lib/members/access";
 import { getPostForEdit, POST_TYPES, type PostType } from "@/lib/posts";
 import { requireViewer } from "@/lib/session";
-import { editorOptions, featuredUrl } from "../../_components/editor-data";
+import {
+  editorOptions,
+  editorSeo,
+  featuredUrl,
+} from "../../_components/editor-data";
 import { PostEditor } from "../../_components/post-editor";
 import { first } from "../../_components/screen";
 import { restoreRevisionAction, trashPostAction } from "../actions";
@@ -73,6 +77,7 @@ export default async function EditPostPage({
           commentStatus: post.commentStatus,
           sticky: post.sticky,
           membersOnly: isMembersOnly(post.meta),
+          seo: await editorSeo(post.meta),
           categoryIds: data.categoryIds,
           tags: data.tags,
         }}

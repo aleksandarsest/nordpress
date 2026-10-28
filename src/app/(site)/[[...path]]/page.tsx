@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { after } from "next/server";
 import { JsonLd } from "@/components/json-ld";
 import { hybridSearch } from "@/lib/ai/search";
 import { markdownPath } from "@/lib/ai-readable";
 import { makeExcerpt } from "@/lib/content";
 import { languageName } from "@/lib/i18n";
+import { getMedia, mediaUrl } from "@/lib/media";
 import { getSettings, type SiteSettings } from "@/lib/options";
 import { postPath, type Route, resolveRoute, termPath } from "@/lib/permalinks";
 import {
@@ -14,6 +17,13 @@ import {
   type ListQuery,
   listPublished,
 } from "@/lib/posts";
+import {
+  findRedirect,
+  recordNotFound,
+  recordRedirectHit,
+} from "@/lib/redirects";
+import { postMetadata, seoOf } from "@/lib/seo";
+import { siteUrl } from "@/lib/site-url";
 import { websiteJsonLd } from "@/lib/structured-data";
 import { getTermBySlug } from "@/lib/terms";
 import { activeTheme, getThemeOptions } from "@/lib/themes";
@@ -29,7 +39,7 @@ function first(value: string | string[] | undefined) {
 async function routeFor({
   params,
   searchParams,
-}: Props): Promise<{ route: Route; requested: string }> {
+}: Props): Promise<{ route: Route; requested: string; pathname: string }> {
   const [{ path = [] }, query, settings] = await Promise.all([
     params,
     searchParams,
@@ -39,6 +49,7 @@ async function routeFor({
   const pageId = first(query.page_id);
   const pathname = path.length ? `/${path.join("/")}` : "/";
   return {
+    pathname,
     route: resolveRoute(
       path,
       { p, page_id: pageId, s: first(query.s) },
@@ -58,13 +69,24 @@ async function routeFor({
 export const instant = false;
 
 export default async function SitePage(props: Props) {
-  const [{ route, requested }, settings] = await Promise.all([
+  const [{ route, requested, pathname }, settings] = await Promise.all([
     routeFor(props),
     getSettings(),
   ]);
   if (!settings.installed) redirect("/install");
+  // Redirect rules come first, so they can also move content that exists
+  const moved = await findRedirect(pathname);
+  if (moved) {
+    after(() => recordRedirectHit(moved.rule.source));
+    if (moved.rule.status === 302) redirect(moved.to);
+    permanentRedirect(moved.to);
+  }
   const view = await resolveView(route, settings, requested);
-  if (!view) notFound();
+  if (!view) {
+    const referrer = (await headers()).get("referer");
+    after(() => recordNotFound(pathname, referrer));
+    notFound();
+  }
   if (view.kind === "redirect") permanentRedirect(view.to);
   return view.node;
 }
@@ -80,6 +102,8 @@ type View =
       markdown?: string;
       /** Published translations by language, for hreflang links. */
       languages?: Record<string, string>;
+      /** A single post or page's search and link-preview metadata. */
+      metadata?: Metadata;
     };
 
 async function resolveView(
@@ -360,12 +384,44 @@ async function canonical(
       : undefined;
   const expected = postPath(post, settings.permalinkStructure, pagePath);
   if (expected !== requested) return { kind: "redirect", to: expected };
+  const seo = seoOf(post.meta);
+  const custom = seo.imageId ? await getMedia(seo.imageId) : null;
+  const image = custom
+    ? custom
+    : post.featuredPath
+      ? {
+          path: post.featuredPath,
+          width: post.featuredWidth,
+          height: post.featuredHeight,
+          alt: post.featuredAlt,
+        }
+      : null;
+  const description = post.excerpt || makeExcerpt(post.contentText, 30);
   return {
     kind: "render",
     markdown: markdownPath(expected),
     languages: await hreflangs(post, settings),
     title: post.title,
-    description: post.excerpt || makeExcerpt(post.contentText, 30),
+    description,
+    metadata: postMetadata({
+      title: post.title,
+      description,
+      url: siteUrl(expected),
+      type: post.type === "page" ? "page" : "post",
+      seo,
+      image: image
+        ? {
+            url: siteUrl(mediaUrl(image.path)),
+            width: image.width,
+            height: image.height,
+            alt: image.alt,
+          }
+        : null,
+      publishedAt: post.publishedAt,
+      modifiedAt: post.updatedAt,
+      author: post.authorName,
+      siteName: settings.title,
+    }),
     node: <SingleView post={post} />,
   };
 }
@@ -381,8 +437,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return {
     title: view.title,
     description: view.description,
+    ...view.metadata,
     ...((view.markdown || view.languages) && {
       alternates: {
+        ...view.metadata?.alternates,
         ...(view.markdown && { types: { "text/markdown": view.markdown } }),
         ...(view.languages && { languages: view.languages }),
       },

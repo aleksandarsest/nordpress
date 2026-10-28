@@ -231,6 +231,11 @@ export function navFor(
                 href: "/admin/backups",
                 cap: "manage_options",
               },
+              {
+                label: "Redirects",
+                href: "/admin/redirects",
+                cap: "manage_options",
+              },
               ...tools.map((t) => ({
                 label: t.title,
                 href: `/admin/tools/${t.plugin}/${t.path}`,

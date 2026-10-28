@@ -81,6 +81,27 @@ Either way, files are served at `/uploads/...` with long-lived cache headers, so
 
 Nordpress sends email for password resets ("Lost your password?" on the login screen, and **Send Reset Link** on each user in the admin). Set `SMTP_URL` to any SMTP provider (Postmark, Resend, SendGrid, Amazon SES, Mailgun, your own server) and optionally `MAIL_FROM`. Without `SMTP_URL`, emails are written to the server log, which is handy in development.
 
+## Search and sharing
+
+Every post and page gets proper metadata for search engines and link previews: a canonical address, Open Graph and Twitter Card tags (title, description, image, author and dates), and `Article` structured data. The **Search & sharing** card in the editor adds, per post:
+
+- a **title for search results** and a **description**, with length counters and a preview of the search result. Empty fields fall back to the title and excerpt. **Write with AI** drafts both in your brand voice.
+- an **image for link previews**, when the featured image isn't the right one for social media and chat apps;
+- **Hide from search engines**, which adds `noindex` and keeps the page out of `sitemap.xml` and `llms.txt`.
+
+Agents can set the same fields (`seo_title`, `seo_description`, `hide_from_search` on `create_post` and `update_post`).
+
+## Redirects
+
+**Tools → Redirects** keeps old links working:
+
+- **Automatic:** when a published post or page gets a new address (slug, date or parent), its old address redirects to the new one. Chains are collapsed, so a post renamed twice still redirects in one hop.
+- **By hand:** an old address on this site to a path or a full URL, permanent (301) or temporary (302). End the old address with `*` to move a whole section: `/old-blog/*` to `/blog/*` keeps the rest of the address. Rules that would loop, redirect everything, or touch `/admin`, `/api` and the like are refused.
+- **Not found:** the addresses visitors asked for that don't exist, most requested first, with where they came from and the post each one probably meant. One click redirects it; scanner noise (`wp-login.php` and friends) is left out.
+- **Import and export** as CSV, including exports from WordPress's Redirection plugin. Agents can use `list_not_found` and `add_redirect`; adding a redirect follows the live-site policy, like publishing.
+
+Missing pages return a real `404` to search engines and AI crawlers. Browsers get the same 404 page, with a `noindex` tag, while the page streams.
+
 ## Backups
 
 **Tools → Backups** puts the whole site in one `.tar.gz` file: every table (posts, pages, comments, users, settings, forms, the shop, newsletter subscribers) and every media file.
@@ -457,7 +478,8 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | Application passwords                              | `app_passwords` (SHA-256 hashed)                                                            |
 | (none: agents use REST with no guardrails)         | MCP server at `/mcp`, `agent_actions` log, `src/lib/mcp`                                    |
 | Nav menus (`nav_menu_item` posts)                  | `menus` + `menu_items`                                                                      |
-| SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/structured-data.ts`, `src/lib/ai-readable.ts`                                      |
+| SEO plugins (Yoast, Rank Math): schema, robots.txt | `src/lib/seo.ts`, `src/lib/structured-data.ts`, `src/lib/ai-readable.ts`                    |
+| Redirection plugin                                 | `redirects` + `not_found_log`, `src/lib/redirects`, **Tools → Redirects**                   |
 | WPML / Polylang                                    | Translations as linked posts (`meta.lang`, `meta.translationOf`), `src/lib/translations.ts` |
 | WooCommerce (core store)                           | `products` + `orders`, `src/lib/shop`, Stripe Checkout                                      |
 | Form plugins (Contact Form 7, Gravity Forms)       | `forms` + `form_submissions`, built in                                                      |
