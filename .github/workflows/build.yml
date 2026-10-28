@@ -89,9 +89,10 @@ jobs:
       - name: Install
         run: |
           if [ "${{ matrix.db }}" = postgres ]; then
-            export DATABASE_URL=postgres://nordpress:nordpress@localhost:5432/nordpress
+            sudo DOMAIN=localhost DATABASE_URL=postgres://nordpress:nordpress@localhost:5432/nordpress ./install.sh
+          else
+            sudo DOMAIN=localhost ./install.sh
           fi
-          sudo --preserve-env=DATABASE_URL DOMAIN=localhost ./install.sh
       - name: Check the site over HTTPS
         run: |
           set -ex
@@ -107,11 +108,13 @@ jobs:
           curl -sk https://localhost/robots.txt | grep -q "Content-Signal"
           # Only Caddy is reachable from outside; the site listens on 127.0.0.1
           sudo ss -ltnp | grep ':3000 ' | grep -q '127.0.0.1'
+          sudo journalctl -u nordpress --no-pager >/tmp/site.log
           if [ "${{ matrix.db }}" = embedded ]; then
             sudo test -f /opt/nordpress/data/db/PG_VERSION
-            sudo journalctl -u nordpress --no-pager | grep -q "built-in database"
+            grep -q "built-in database" /tmp/site.log
           else
-            ! sudo journalctl -u nordpress --no-pager | grep -q "built-in database"
+            sudo grep -q '^DATABASE_URL=postgres://' /opt/nordpress/.env
+            ! grep -q "built-in database" /tmp/site.log
           fi
       - name: Restart (the database stays)
         run: |
