@@ -7,6 +7,13 @@
 # any provider. It checks the server first and changes nothing if something
 # is missing. Run it again to upgrade; your content stays.
 #
+# No terminal needed: when creating a server, paste this as its "user data"
+# (DigitalOcean, Hetzner, Vultr, Linode, AWS and others have the field), and
+# open the domain a few minutes later:
+#
+#   #!/bin/bash
+#   curl -fsSL https://raw.githubusercontent.com/aleksandarsest/nordpress/main/install.sh | DOMAIN=example.com bash
+#
 # Settings, all optional (it asks for the domain if it isn't given):
 #   DOMAIN=example.com   the site's address
 #   DIR=/opt/nordpress   where it's installed
@@ -40,10 +47,14 @@ problem() {
   printf '\n' >&2
   exit 1
 }
+# Someone at a terminal answers questions; unattended (a server's "user
+# data" at creation, CI) the defaults apply
+INTERACTIVE=""
+if (: </dev/tty) 2>/dev/null; then INTERACTIVE=1; fi
 ask() {
   # Piped into bash, the script itself is stdin: read answers from the terminal
   local answer=""
-  if [ -r /dev/tty ]; then read -r -p "  $1" answer </dev/tty || true; fi
+  if [ -n "$INTERACTIVE" ]; then read -r -p "  $1" answer </dev/tty || true; fi
   printf '%s' "$answer"
 }
 free_mb() { df -Pm "$1" | awk 'NR == 2 {print $4}'; }
@@ -130,6 +141,8 @@ fi
 [ "$HTTPS" = caddy ] && ok "Web ports 80 and 443 are free" || ok "Runs behind your web server"
 
 if [ -z "$DOMAIN" ]; then
+  [ -n "$INTERACTIVE" ] || problem "No domain given." \
+    "Run it as: curl -fsSL https://raw.githubusercontent.com/aleksandarsest/nordpress/main/install.sh | DOMAIN=example.com bash"
   echo
   DOMAIN=$(ask "Your site's address, like example.com: ")
 fi
@@ -149,7 +162,8 @@ if [ "$HTTPS" = caddy ] && [ "$DOMAIN" != localhost ] && [ -z "${SKIP_DNS_CHECK:
     echo
     echo "  It can take a few minutes to work. The site can be installed now and gets"
     echo "  its HTTPS certificate once the domain points here."
-    [ "$(ask "Install now anyway? [y/N] ")" = y ] ||
+    # Unattended, carry on: the certificate follows once DNS is in place
+    [ -z "$INTERACTIVE" ] || [ "$(ask "Install now anyway? [y/N] ")" = y ] ||
       problem "Stopped until $DOMAIN points to $here." "Add the record above, then run the installer again."
   else
     ok "$DOMAIN points to this server"

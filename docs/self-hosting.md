@@ -6,13 +6,46 @@ that fits.
 
 | You have                                                         | Use                                                     |
 | ---------------------------------------------------------------- | ------------------------------------------------------- |
+| A domain, and no wish to use a terminal                          | [Without a terminal](#without-a-terminal)               |
 | A Linux server (VPS) and a domain                                | [One command](#one-command)                             |
 | A server that already runs nginx or Apache                       | [One command](#one-command), behind your web server     |
 | Coolify, Dokploy, CapRover, Portainer or another Docker platform | [Docker Compose](#docker-platforms)                     |
 | A Node.js host and a managed Postgres                            | [Node.js hosts](#nodejs-hosts)                          |
 | Shared PHP hosting (cPanel, Plesk) only                          | Not enough on its own; see [below](#shared-php-hosting) |
 
-## One command
+## Without a terminal
+
+Most providers let you give a new server a script to run when it starts
+(it's called user data, an initialization script or cloud config). Paste
+Nordpress's there, and the server installs itself.
+
+1. **Create a server** at your provider: Ubuntu 24.04, at least 1 GB of
+   memory. Where the form offers user data, paste this, with your domain
+   instead of `example.com`:
+
+   ```bash
+   #!/bin/bash
+   curl -fsSL https://raw.githubusercontent.com/aleksandarsest/nordpress/main/install.sh | DOMAIN=example.com bash
+   ```
+
+   | Provider        | Where to paste it                                                     |
+   | --------------- | --------------------------------------------------------------------- |
+   | DigitalOcean    | Create → Droplets → _Advanced options_ → _Add initialization scripts_ |
+   | Hetzner Cloud   | Add server → _Cloud config_                                           |
+   | Vultr           | Deploy → _Additional features_ → _Cloud-Init User-Data_               |
+   | Linode (Akamai) | Create Linode → _Add User Data_                                       |
+   | AWS Lightsail   | Create instance → _Add launch script_                                 |
+
+2. **Point the domain at the server.** Once the server is created, copy its
+   IP address. Where you bought the domain, open its DNS settings and add a
+   record: type `A`, name `@`, value the IP address.
+3. **Wait a few minutes**, then open your domain and create your account.
+
+The site installs while the domain's DNS spreads, and gets its HTTPS
+certificate as soon as the domain points at it. If the page doesn't open
+after half an hour, check the DNS record. The installer's own log is
+`/var/log/cloud-init-output.log` on the server.
+
 
 **You need:** a Linux server with at least 1 GB of memory and 3 GB of free
 disk, and a domain. Any provider works: Hetzner, DigitalOcean,

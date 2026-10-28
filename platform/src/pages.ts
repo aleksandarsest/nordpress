@@ -87,7 +87,9 @@ export function homePage(signedIn: boolean) {
     `<section class="hero"><h1>Your website,<br>ready in a minute.</h1>
 <p>A WordPress-style site with AI built in: for your business, your shop, your writing or your event. Free during the beta.</p>
 <a class="button" href="${signedIn ? "/account" : "/signup"}">${signedIn ? "Go to your sites" : "Join the beta"}</a></section>
-<section class="grid">${FEATURES.map(([t, d]) => `<div class="card"><h3>${esc(t)}</h3><p>${esc(d)}</p></div>`).join("")}</section>`,
+<section class="grid">${FEATURES.map(([t, d]) => `<div class="card"><h3>${esc(t)}</h3><p>${esc(d)}</p></div>`).join("")}</section>
+<section class="card" style="margin-top:2rem"><h3>Rather run it on your own server?</h3>
+<p>Nordpress is free and open source. One command, or one line pasted when you create a server, installs it at any hosting provider, with HTTPS. <a href="https://github.com/aleksandarsest/nordpress/blob/main/docs/self-hosting.md">How to host it yourself</a></p></section>`,
     signedIn,
   );
 }
