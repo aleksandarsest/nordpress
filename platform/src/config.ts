@@ -29,6 +29,9 @@ export const config = {
   idleMinutes: Number(process.env.IDLE_MINUTES ?? 15),
   /** Node's heap limit per site, in megabytes. */
   siteHeapMb: Number(process.env.SITE_HEAP_MB ?? 160),
+  /** The server's public addresses, which people point their own domains at. */
+  publicIp: process.env.PUBLIC_IP ?? "",
+  publicIp6: process.env.PUBLIC_IP6 ?? "",
   reserved: reservedNames(process.env.RESERVED_SUBDOMAINS ?? ""),
   /** Email for the sites (password resets, forms, newsletters), shared. */
   smtpUrl: process.env.SMTP_URL ?? "",

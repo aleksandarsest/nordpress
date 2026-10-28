@@ -15,12 +15,22 @@ export function npSite(
     | "status"
     | "update"
     | "remove"
-    | "template",
+    | "template"
+    | "env"
+    | "domain-add"
+    | "domain-remove",
   name?: string,
   input?: string,
+  extra: string[] = [],
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const args = ["-n", config.helper, action, ...(name ? [name] : [])];
+    const args = [
+      "-n",
+      config.helper,
+      action,
+      ...(name ? [name] : []),
+      ...extra,
+    ];
     const child = spawn("sudo", args, { stdio: ["pipe", "pipe", "pipe"] });
     let out = "";
     let err = "";

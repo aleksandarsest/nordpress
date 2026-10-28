@@ -6,6 +6,7 @@ import {
   verifyPassword,
 } from "./auth.ts";
 import {
+  checkDomain,
   checkSubdomain,
   reservedNames,
   resourceNames,
@@ -78,5 +79,39 @@ describe("accounts", () => {
     expect(readSession("secret", token.replace(/^42/, "43"))).toBeNull();
     expect(readSession("secret", sessionToken("secret", 42, -1))).toBeNull();
     expect(readSession("secret", undefined)).toBeNull();
+  });
+});
+
+describe("custom domains", () => {
+  it("cleans up what people paste", () => {
+    for (const input of [
+      "pekara.me",
+      "  Pekara.ME ",
+      "https://www.pekara.me/",
+      "http://pekara.me/about?x=1",
+      "pekara.me.",
+      "pekara.me:443",
+    ])
+      expect(checkDomain(input, "aleksa.me"), input).toBe("pekara.me");
+    expect(checkDomain("shop.pekara.co.uk", "aleksa.me")).toBe(
+      "shop.pekara.co.uk",
+    );
+  });
+
+  it("refuses what can't be a site's own domain", () => {
+    for (const bad of [
+      "",
+      "pekara",
+      "1.2.3.4",
+      "pek ara.me",
+      "-pekara.me",
+      "pekara-.me",
+      "pekara..me",
+      "aleksa.me",
+      "www.aleksa.me",
+      "pekara.aleksa.me",
+      `${"a".repeat(64)}.me`,
+    ])
+      expect(() => checkDomain(bad, "aleksa.me"), bad).toThrow();
   });
 });

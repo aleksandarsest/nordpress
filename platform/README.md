@@ -99,6 +99,16 @@ By hand: run as root on the server, and replace each `PASSWORD` with its own
 9. **Invites:** `np-platform invite 1 "for Ana"` prints a code. Send people
    `https://aleksa.me/signup?invite=<code>`.
 
+## Own domains
+
+A site's owner can move it to a domain they bought (Your sites → Use your own
+domain). The account page shows the DNS records to add; the platform checks
+them every few minutes and, once they point at `PUBLIC_IP`, `np-site
+domain-add` writes an nginx server block for the domain and gets its
+certificate with certbot (renewed by certbot's timer). The site then lives at
+that domain, and `name.aleksa.me` and `www.` redirect to it. The helper never
+takes a domain that another nginx site on the server already serves.
+
 ## Running it
 
 | Command                               | Does                                          |

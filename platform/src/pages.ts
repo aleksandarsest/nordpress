@@ -135,8 +135,43 @@ const STATUS: Record<Site["status"], string> = {
   deleting: "Being deleted…",
 };
 
-export function accountPage(email: string, sites: Site[], error = "") {
-  const url = (s: Site) => `https://${s.subdomain}.${config.domain}`;
+/** A site on the account page, with its own domain if it has one. */
+export type AccountSite = Site & {
+  own_domain?: string | null;
+  domain_status?: "pending" | "active" | null;
+  domain_error?: string | null;
+};
+
+const record = (name: string) =>
+  `<tr><td>A</td><td><code>${esc(name)}</code></td><td><code>${esc(config.publicIp)}</code></td></tr>`;
+
+function domainSection(s: AccountSite) {
+  if (s.status !== "active" || !config.publicIp) return "";
+  const base = `/sites/${esc(s.subdomain)}/domain`;
+  const remove = (label: string) =>
+    `<form method="post" action="${base}/remove" style="display:inline"><button class="button secondary" type="submit">${label}</button></form>`;
+  if (!s.own_domain)
+    return `<details style="margin-top:1rem"><summary class="small">Use your own domain</summary>
+<form method="post" action="${base}" style="margin-top:.75rem">
+<label>Your domain<input name="domain" placeholder="example.com" required autocomplete="off"><span class="hint">One you've bought, at any registrar. Your site moves there, and ${esc(s.subdomain)}.${esc(config.domain)} keeps working as a redirect.</span></label>
+<button class="button" type="submit">Continue</button></form></details>`;
+  if (s.domain_status === "active")
+    return `<p class="small" style="margin-top:1rem">Your site's address is <strong>${esc(s.own_domain)}</strong>, with HTTPS. ${remove("Stop using it")}</p>`;
+  return `<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
+<h3 style="margin:0 0 .4rem">Connecting ${esc(s.own_domain)}</h3>
+<p class="small">Where you bought the domain, open its DNS settings and add these records (replace any A records already there, and remove AAAA records):</p>
+<table class="small" style="width:100%;border-collapse:collapse;margin:.5rem 0 1rem"><tr style="text-align:left"><th>Type</th><th>Name</th><th>Value</th></tr>
+${record("@")}${record("www")}</table>
+${s.domain_error ? `<p class="small"><strong>Now:</strong> ${esc(s.domain_error)}</p>` : ""}
+<p class="small">We check every few minutes and connect it as soon as the records work; it usually takes 5 to 30 minutes. Your site stays open at ${esc(s.subdomain)}.${esc(config.domain)} meanwhile.</p>
+<form method="post" action="${base}/check" style="display:inline"><button class="button" type="submit">Check now</button></form> ${remove("Cancel")}</div>`;
+}
+
+export function accountPage(email: string, sites: AccountSite[], error = "") {
+  const url = (s: AccountSite) =>
+    s.own_domain && s.domain_status === "active"
+      ? `https://${s.own_domain}`
+      : `https://${s.subdomain}.${config.domain}`;
   return layout(
     "Your sites · Nordpress",
     `<div class="narrow" style="max-width:40rem"><h1>Your sites</h1><p class="small">Signed in as ${esc(email)}.</p>
@@ -158,7 +193,7 @@ ${
 <form method="post" action="/sites/${esc(s.subdomain)}/retry"><label>Your password<input name="password" type="password" required autocomplete="current-password"><span class="hint">Your site needs it to set up your account.</span></label>
 <button class="button" type="submit">Try again</button></form>`
     : ""
-}${
+}${domainSection(s)}${
   s.status === "active" || s.status === "failed"
     ? `<details style="margin-top:1rem"><summary class="small">Delete this site</summary>
 <form method="post" action="/sites/${esc(s.subdomain)}/delete" style="margin-top:.75rem">

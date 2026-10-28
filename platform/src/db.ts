@@ -56,4 +56,23 @@ export async function migrate() {
       created_at timestamptz not null default now()
     )`;
   await sql`alter table accounts add column if not exists name text not null default ''`;
+  await sql`
+    create table if not exists domains (
+      domain text primary key,
+      site_id bigint not null unique references sites(id) on delete cascade,
+      status text not null default 'pending',
+      www boolean not null default false,
+      error text,
+      created_at timestamptz not null default now()
+    )`;
 }
+
+/** A site's own domain: "pending" until its DNS points here and it has a certificate. */
+export type Domain = {
+  domain: string;
+  site_id: number;
+  status: "pending" | "active";
+  www: boolean;
+  error: string | null;
+  created_at: Date;
+};

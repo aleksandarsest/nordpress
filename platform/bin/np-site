@@ -7,7 +7,10 @@
 #   np-site start|stop|restart|status <name>
 #   np-site update <name>    stop the site and give it the current build
 #   np-site remove <name>    stop the site and delete its folder, settings and user
+#   np-site env <name>       replace the site's settings with stdin
 #   np-site template         download the build for the checked-out version
+#   np-site domain-add <domain> [www]   serve a site's own domain, with a certificate
+#   np-site domain-remove <domain>
 set -eu
 
 APP=/opt/nordpress
@@ -15,13 +18,31 @@ TEMPLATE=/var/lib/nordpress/template
 SITES=/var/lib/nordpress/sites
 SETTINGS=/etc/nordpress/sites
 RELEASE=https://github.com/aleksandarsest/nordpress/releases/download/platform-build
+NGINX=/etc/nginx/sites-enabled
+PLATFORM_PORT=3100
 
 fail() { echo "np-site: $*" >&2; exit 1; }
 
 action=${1:-}
 name=${2:-}
 
-if [ "$action" != template ]; then
+check_domain() {
+  printf '%s' "$1" | grep -Eqx '([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,62}' &&
+    [ ${#1} -le 253 ] || fail "not a domain: '$1'"
+  # Never the platform's own domain, nor a name another app on this server serves
+  platform=$(sed -n 's/^PLATFORM_DOMAIN=//p' /etc/nordpress/platform.env 2>/dev/null)
+  case "$1" in
+    "$platform" | *".$platform") fail "$1 belongs to the platform" ;;
+  esac
+  if grep -rlE "server_name[^;]*[[:space:]](www\.)?$(printf '%s' "$1" | sed 's/\./\\./g')[[:space:];]" "$NGINX" 2>/dev/null |
+    grep -qv "/nordpress-domain-$1.conf$"; then
+    fail "another site on this server already uses $1"
+  fi
+}
+
+if [ "$action" = domain-add ] || [ "$action" = domain-remove ]; then
+  check_domain "$name"
+elif [ "$action" != template ]; then
   case "$name" in
     "" | -* | *-  | *[!a-z0-9-]*) fail "not a site name: '$name'" ;;
   esac
@@ -65,6 +86,58 @@ case "$action" in
     systemctl stop "$unit"
     copy_build
     ;;
+  env)
+    [ -d "$dir" ] || fail "no site called $name"
+    (umask 077 && cat > "$SETTINGS/$name.env.new" && mv "$SETTINGS/$name.env.new" "$SETTINGS/$name.env")
+    ;;
+  domain-add)
+    conf="$NGINX/nordpress-domain-$name.conf"
+    names="$name"
+    certnames="-d $name"
+    if [ "${3:-}" = www ]; then
+      names="$name www.$name"
+      certnames="$certnames -d www.$name"
+    fi
+    if [ ! -f "$conf" ]; then
+      cat > "$conf" <<NGINXCONF
+# A Nordpress site's own domain (np-site domain-add); certbot adds HTTPS
+server {
+  listen 80;
+  listen [::]:80;
+  server_name $names;
+  client_max_body_size 50m;
+  location / {
+    proxy_pass http://127.0.0.1:$PLATFORM_PORT;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$remote_addr;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 300s;
+    proxy_buffering off;
+  }
+}
+NGINXCONF
+      if ! nginx -t >/dev/null 2>&1; then
+        rm -f "$conf"
+        fail "nginx didn't accept the settings for $name"
+      fi
+      systemctl reload nginx
+    fi
+    # shellcheck disable=SC2086
+    if ! certbot --nginx --non-interactive --agree-tos --redirect --keep-until-expiring \
+      --cert-name "nordpress-$name" $certnames >/tmp/np-certbot.log 2>&1; then
+      tail -5 /tmp/np-certbot.log >&2
+      rm -f "$conf"
+      systemctl reload nginx
+      fail "couldn't get a certificate for $name"
+    fi
+    systemctl reload nginx
+    ;;
+  domain-remove)
+    certbot delete --non-interactive --cert-name "nordpress-$name" >/dev/null 2>&1 || true
+    rm -f "$NGINX/nordpress-domain-$name.conf"
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx
+    ;;
   remove)
     systemctl stop "$unit" 2>/dev/null || true
     systemctl reset-failed "$unit" 2>/dev/null || true
@@ -88,6 +161,6 @@ case "$action" in
     echo "Build $want is ready."
     ;;
   *)
-    fail "usage: np-site create|start|stop|restart|status|update|remove <name>, or np-site template"
+    fail "usage: np-site create|start|stop|restart|status|update|remove|env <name>, np-site template, or np-site domain-add|domain-remove <domain> [www]"
     ;;
 esac

@@ -131,3 +131,31 @@ export function resourceNames(sub: string) {
 
 /** The local port a site listens on, from its id; clear of the 3000s and 4000s other apps use. */
 export const sitePort = (id: number) => 6100 + Number(id);
+
+/**
+ * A domain someone wants for their site: "https://www.Pekara.me/" →
+ * "pekara.me". Not the platform's own domain, an IP address or a bare name.
+ */
+export function checkDomain(input: string, platformDomain: string) {
+  const name = input
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z]+:\/\//, "")
+    .replace(/[/?#:].*$/, "")
+    .replace(/\.$/, "")
+    .replace(/^www\./, "");
+  if (!name) throw new NameError("Type your domain, like example.com.");
+  if (name.length > 253) throw new NameError("That domain is too long.");
+  if (/^[\d.]+$/.test(name))
+    throw new NameError("Use a domain name, not an IP address.");
+  const label = "[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?";
+  if (!new RegExp(`^(${label}\\.)+[a-z][a-z0-9-]{0,62}$`).test(name))
+    throw new NameError(
+      "That isn't a domain. Type it like example.com, without spaces.",
+    );
+  if (name === platformDomain || name.endsWith(`.${platformDomain}`))
+    throw new NameError(
+      `Your site already has an address at ${platformDomain}. Use a domain you own.`,
+    );
+  return name;
+}

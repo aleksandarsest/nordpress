@@ -12,9 +12,21 @@ import {
   verifyPassword,
 } from "./auth.ts";
 import { config } from "./config.ts";
-import { type Account, migrate, type Site, sql } from "./db.ts";
-import { checkSubdomain, NameError, siteFromHost, sitePort } from "./names.ts";
+import { type Account, type Domain, migrate, type Site, sql } from "./db.ts";
 import {
+  connectDomain,
+  connectPendingDomains,
+  removeDomain,
+} from "./domains.ts";
+import {
+  checkDomain,
+  checkSubdomain,
+  NameError,
+  siteFromHost,
+  sitePort,
+} from "./names.ts";
+import {
+  type AccountSite,
   accountPage,
   homePage,
   loginPage,
@@ -56,8 +68,9 @@ const redirect = (
   res: ServerResponse,
   to: string,
   headers: Record<string, string> = {},
+  status = 303,
 ) => {
-  res.writeHead(303, { Location: to, ...headers });
+  res.writeHead(status, { Location: to, ...headers });
   res.end();
 };
 
@@ -239,9 +252,10 @@ async function platform(req: IncomingMessage, res: ServerResponse) {
   if (path === "/health") return send(res, 200, "ok");
 
   if (!account) return redirect(res, "/login");
-  const sites = await sql<
-    Site[]
-  >`select * from sites where account_id = ${account.id} order by id`;
+  const sites = await sql<AccountSite[]>`
+    select s.*, d.domain as own_domain, d.status as domain_status, d.error as domain_error
+    from sites s left join domains d on d.site_id = s.id
+    where s.account_id = ${account.id} order by s.id`;
 
   if (path === "/account")
     return send(res, 200, accountPage(account.email, sites));
@@ -281,6 +295,42 @@ async function platform(req: IncomingMessage, res: ServerResponse) {
     return redirect(res, "/account");
   }
 
+  const own = path.match(/^\/sites\/([a-z0-9-]+)\/domain(\/check|\/remove)?$/);
+  if (own && post) {
+    const site = sites.find((s) => s.subdomain === own[1]);
+    const values = await form(req);
+    if (site?.status !== "active") return redirect(res, "/account");
+    const fail = (error: string) =>
+      send(res, 400, accountPage(account.email, sites, error));
+    const [current] = await sql<
+      Domain[]
+    >`select * from domains where site_id = ${site.id}`;
+    if (own[2] === "/remove") {
+      if (current) await removeDomain(site, current);
+      return redirect(res, "/account");
+    }
+    if (own[2] === "/check") {
+      if (current?.status === "pending") await connectDomain(site, current);
+      return redirect(res, "/account");
+    }
+    if (current) return fail("Remove the current domain first.");
+    let domain: string;
+    try {
+      domain = checkDomain(values.domain ?? "", config.domain);
+    } catch (error) {
+      if (error instanceof NameError) return fail(error.message);
+      throw error;
+    }
+    if (!config.publicIp) return fail("Own domains aren't available yet.");
+    const [added] = await sql<Domain[]>`
+      insert into domains (domain, site_id) values (${domain}, ${site.id})
+      on conflict do nothing returning *`;
+    if (!added) return fail(`${domain} is already used by another site.`);
+    // It may already point here: then it's connected right away
+    await connectDomain(site, added);
+    return redirect(res, "/account");
+  }
+
   const del = path.match(/^\/sites\/([a-z0-9-]+)\/delete$/);
   if (del && post) {
     const site = sites.find((s) => s.subdomain === del[1]);
@@ -296,6 +346,10 @@ async function platform(req: IncomingMessage, res: ServerResponse) {
           `Type ${site.subdomain} to confirm deleting it.`,
         ),
       );
+    const [current] = await sql<
+      Domain[]
+    >`select * from domains where site_id = ${site.id}`;
+    if (current) await removeDomain(site, current);
     await deleteSite(site);
     return redirect(res, "/account");
   }
@@ -306,14 +360,46 @@ async function platform(req: IncomingMessage, res: ServerResponse) {
 const STARTING =
   '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>One moment</title><p style="font:17px system-ui;margin:4rem auto;max-width:30rem;padding:0 1rem">This site is being set up or restarted. Try again in a minute.</p>';
 
+type Routed = {
+  id: number;
+  status: Site["status"];
+  subdomain: string;
+  own_domain: string | null;
+};
+
+/** The site a request is for: by name.<domain>, or by the site's own domain. */
+async function routeHost(host: string) {
+  const sub = siteFromHost(host, config.domain);
+  if (sub) {
+    const [site] = await sql<Routed[]>`
+      select s.id, s.status, s.subdomain, d.domain as own_domain
+      from sites s left join domains d on d.site_id = s.id and d.status = 'active'
+      where s.subdomain = ${sub}`;
+    return { sub, site };
+  }
+  if (host === config.domain || host === `www.${config.domain}`) return null;
+  const [site] = await sql<Routed[]>`
+    select s.id, s.status, s.subdomain, d.domain as own_domain
+    from domains d join sites s on s.id = d.site_id
+    where d.status = 'active' and d.domain = ${host.replace(/^www\./, "")}`;
+  return site ? { sub: site.subdomain, site } : null;
+}
+
 const server = createServer(async (req, res) => {
   try {
-    const sub = siteFromHost(req.headers.host, config.domain);
-    if (sub) {
-      const [site] = await sql<
-        Site[]
-      >`select id, status from sites where subdomain = ${sub}`;
+    const host = (req.headers.host ?? "").toLowerCase().replace(/:\d+$/, "");
+    const routed = await routeHost(host);
+    if (routed) {
+      const { sub, site } = routed;
       if (!site) return send(res, 404, notFoundSite(sub));
+      // A site with its own domain lives there; other addresses redirect
+      if (site.own_domain && host !== site.own_domain)
+        return redirect(
+          res,
+          `https://${site.own_domain}${req.url ?? "/"}`,
+          {},
+          301,
+        );
       if (site.status !== "active") return send(res, 503, STARTING);
       // Only the platform talks to a site's internal endpoints, from inside
       const path = posix.normalize(
@@ -369,6 +455,9 @@ async function cron(site: Site, path: string) {
 let lastDaily = "";
 setInterval(
   async () => {
+    await connectPendingDomains().catch((error) =>
+      console.error("[domains]", error),
+    );
     const sites = await sql<
       Site[]
     >`select * from sites where status = 'active'`;

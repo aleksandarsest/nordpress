@@ -73,6 +73,7 @@ MAX_AWAKE=2
 IDLE_MINUTES=15
 SITE_HEAP_MB=160
 RESERVED_SUBDOMAINS=$reserved
+PUBLIC_IP=$(curl -fsS4 --max-time 10 https://api.ipify.org || true)
 SMTP_URL=
 MAIL_FROM=
 EOF
@@ -80,6 +81,12 @@ EOF
   echo "created; settings in $ENV"
   echo "reserved names: $reserved"
 fi
+
+# Sites' own domains get certificates through certbot's nginx plugin
+command -v certbot >/dev/null && dpkg -s python3-certbot-nginx >/dev/null 2>&1 ||
+  apt-get install -y -q certbot python3-certbot-nginx >/dev/null
+grep -q '^PUBLIC_IP=.' "$ENV" ||
+  echo "PUBLIC_IP=$(curl -fsS4 --max-time 10 https://api.ipify.org)" >>"$ENV"
 
 step "The app in $APP"
 id nordpress >/dev/null 2>&1 ||

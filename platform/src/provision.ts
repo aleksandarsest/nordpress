@@ -55,9 +55,9 @@ async function dropDatabase(sub: string) {
   }
 }
 
-function siteEnv(site: Site) {
+/** A site's settings; `url` is its own domain once that's connected. */
+export function siteEnv(site: Site, url = siteUrl(site.subdomain)) {
   const { database, role, dir } = resourceNames(site.subdomain);
-  const url = siteUrl(site.subdomain);
   return {
     PORT: String(sitePort(site.id)),
     DATABASE_URL: `postgres://${role}:${site.db_password}@127.0.0.1:5432/${database}`,
