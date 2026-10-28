@@ -10,6 +10,11 @@ export type MarkdownOptions = {
   absolute: (url: string) => string;
   /** Where agents can read and submit an embedded form. */
   formUrl: (id: number) => string;
+  /**
+   * Writes embeds as the HTML the editor parses, so Markdown that comes back
+   * (from an agent's edit or a translation) keeps them instead of links.
+   */
+  editable?: boolean;
 };
 
 const ESCAPE = /([\\`*_[\]])/g;
@@ -102,13 +107,15 @@ function block(node: JSONContent, o: MarkdownOptions): string {
     }
     case "videoEmbed": {
       const { provider, id } = node.attrs ?? {};
-      return isValidVideo(provider, id)
-        ? `[Video](${videoPageUrl(provider, id)})`
-        : "";
+      if (!isValidVideo(provider, id)) return "";
+      return o.editable
+        ? `<figure data-video="${provider}" data-id="${id}"></figure>`
+        : `[Video](${videoPageUrl(provider, id)})`;
     }
     case "formEmbed": {
       const id = Number(node.attrs?.formId);
       if (!id) return "";
+      if (o.editable) return `<div data-form="${id}"></div>`;
       const title = String(node.attrs?.title || "Form").replace(ESCAPE, "\\$1");
       return `[Form: ${title}](${o.formUrl(id)}) (JSON Schema and submission endpoint)`;
     }

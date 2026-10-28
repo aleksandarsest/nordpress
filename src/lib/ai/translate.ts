@@ -22,7 +22,7 @@ const Translation = z.object({
 
 const SYSTEM = `You translate website posts and pages. Translate the title, the excerpt and the Markdown body into the target language so it reads as if written in that language by the same author: natural phrasing, local conventions for dates, numbers and punctuation, the same tone.
 
-Keep the Markdown structure exactly: headings, lists, emphasis, links and images. Translate link text but never URLs. Leave product names, brand names, code and anything in backticks as they are. Don't add, drop or summarize content. If the site's style guide is in another language, apply its tone and rules, not its language.`;
+Keep the Markdown structure exactly: headings, lists, emphasis, links and images. Translate link text but never URLs. Leave product names, brand names, code, anything in backticks and HTML tags such as <div data-form="3"></div> (embedded forms and videos) as they are. Don't add, drop or summarize content. If the site's style guide is in another language, apply its tone and rules, not its language.`;
 
 export async function translatePost(
   input: {

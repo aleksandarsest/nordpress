@@ -152,6 +152,8 @@ Logged-in browser sessions also work for same-origin requests. Incoming HTML is 
 
 Set `ANTHROPIC_API_KEY` in `.env.local` and restart. Without a key, the AI controls simply don't appear.
 
+No key? Connect your own Claude (or another MCP client) to the site and it does the same work on your subscription: writing, translation, alt text, forms and the Inbox. See [Using your Claude or ChatGPT subscription](docs/agents.md#using-your-claude-or-chatgpt-subscription).
+
 - **Writing assistant:** the **AI** menu in the editor toolbar can improve, fix, shorten, lengthen, simplify or re-tone the selection (or the whole post), continue writing, write an excerpt, or follow a custom instruction. Answers stream into a preview; nothing changes until you choose Replace or Insert, and Undo works afterwards.
 - **Suggestions:** the **AI Suggestions** card proposes titles, an excerpt, a slug, categories (from your existing ones) and tags (reusing existing tags where they fit). Apply each one individually.
 - **Alt text:** **Generate with AI** on a media item, a bulk **Generate with AI** for images missing alt text, and optional automatic alt text for new uploads.
@@ -326,7 +328,12 @@ claude mcp add --transport http nordpress https://your-site/mcp \
 | `search_content`, `get_post`, `list_categories_and_tags` | Find and read posts and pages; bodies come back as Markdown                              |
 | `create_post`, `update_post`, `trash_post`               | Write in Markdown; categories and tags by name; trash only, never permanent deletion     |
 | `list_comments`, `moderate_comment`, `reply_to_comment`  | Moderation queue and replies                                                             |
-| `get_form_responses`                                     | Forms and their responses, with AI summaries                                             |
+| `get_form_responses`, `create_form`                      | Read forms and their responses, with AI summaries; build new forms                       |
+| `list_media`, `view_image`, `set_image_alt_text`         | Browse media, look at an image and write its alt text                                    |
+| `save_translation`                                       | Save a translation the agent wrote, as a draft linked to the original                    |
+| `get_site_tasks`, `resolve_inbox_item`                   | Missing excerpts and alt text, and the Inbox, to fix or dismiss                          |
+
+**Prompts:** `write_post`, `translate_post`, `describe_images`, `site_checkup`, `create_form` and `answer_comments` start common jobs, so a Claude subscription can do what the built-in AI features do without an API key on the site.
 
 **Guardrails:**
 

@@ -15,9 +15,11 @@ import {
   submitComment,
 } from "../comments";
 import { htmlToDoc } from "../content";
-import { listForms, listSubmissions } from "../forms";
+import { createForm, FormError, listForms, listSubmissions } from "../forms";
+import { FIELD_TYPES, FormDefinitionError } from "../forms/fields";
+import { normalizeLanguageCode } from "../i18n";
 import { docToMarkdown, markdownToHtml } from "../markdown";
-import { getMedia, mediaUrl, updateMedia } from "../media";
+import { getMedia, listMedia, mediaUrl, updateMedia } from "../media";
 import type { SiteSettings } from "../options";
 import { postPath } from "../permalinks";
 import {
@@ -44,8 +46,17 @@ import {
 } from "../shop";
 import { formatMoney, parseMoney } from "../shop/money";
 import { siteUrl } from "../site-url";
+import { storage } from "../storage";
 import { createTerm, listTerms, TERMS_TAG } from "../terms";
+import { createTranslation, getTranslations } from "../translations";
 import { type AgentOutcome, logAgentAction } from "./audit";
+import {
+  getOpenSuggestion,
+  imagesMissingAltText,
+  openSuggestions,
+  postsMissingExcerpts,
+  resolveSuggestion,
+} from "./tasks";
 
 // The tools AI agents use to manage the site, shared by the MCP server
 // (outside agents) and the admin assistant. Every tool acts with the
@@ -77,7 +88,10 @@ export type ActionPreview = {
   image?: string;
 };
 
-type Result = { text: string; target?: string };
+/** An image for the model to look at, base64 encoded. */
+export type ToolImage = { data: string; mimeType: string };
+
+type Result = { text: string; target?: string; images?: ToolImage[] };
 
 export type AgentTool = {
   name: string;
@@ -140,11 +154,22 @@ const STATUS_LABELS: Record<string, string> = {
 
 const json = (data: unknown) => JSON.stringify(data, null, 2);
 const plural = (type: PostType) => (type === "page" ? "pages" : "posts");
+// Embeds come out as tags the editor parses back, so edits keep them
 const toMarkdown = (doc: Post["content"]) =>
   docToMarkdown(doc, {
     absolute: (u) => (u.startsWith("/") ? siteUrl(u) : u),
     formUrl: (formId) => siteUrl(`/wp-json/nordpress/v1/forms/${formId}`),
+    editable: true,
   });
+
+// Images models can look at, and the size limit most of them share
+const VISION_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export function createAgentTools(ctx: ToolContext): AgentTool[] {
   const { viewer, settings } = ctx;
@@ -243,7 +268,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
       .string()
       .max(200_000)
       .describe(
-        "The full body in Markdown (GitHub flavored). Raw HTML other than basic formatting is dropped.",
+        'The full body in Markdown (GitHub flavored). Raw HTML other than basic formatting is dropped, except embeds: <div data-form="ID"></div> on its own line embeds a form, and <figure data-video="youtube" data-id="…"></figure> a video. Keep embeds from get_post where they belong.',
       ),
     excerpt: z.string().max(1000).describe("Short summary for listings"),
     slug: z
@@ -352,7 +377,7 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     return { comment, postTitle: found?.post.title ?? "(deleted post)" };
   }
 
-  return [
+  const tools: AgentTool[] = [
     // -----------------------------------------------------------------------
     // Reading
     // -----------------------------------------------------------------------
@@ -378,6 +403,8 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
               url: siteUrl("/"),
               timezone: settings.timezone,
               llms_txt: siteUrl("/llms.txt"),
+              language: settings.defaultLanguage,
+              translation_languages: settings.languages,
             },
             you: {
               name: viewer.name,
@@ -498,6 +525,11 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
           }),
           ...(post.type === "page" && { parent_id: post.parentId }),
           comments: post.commentStatus,
+          ...(settings.languages.length > 0 && {
+            translations: (await getTranslations(post))
+              .filter((t) => t.id !== post.id)
+              .map((t) => ({ id: t.id, language: t.lang, status: t.status })),
+          }),
         };
         return {
           text: `${json(meta)}\n\n---\n\n${toMarkdown(post.content) || "(empty)"}`,
@@ -707,6 +739,64 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
     }),
 
     defineTool({
+      name: "save_translation",
+      title: "Save a translation",
+      description:
+        "Saves your translation of a post or page into one of the site's translation languages (see get_site_info). Read the original with get_post and translate the title, excerpt and whole Markdown body, keeping links, images and embed tags. A new translation is saved as a draft linked to the original; an existing one is updated.",
+      input: {
+        id: z.number().int().positive().describe("The original post or page"),
+        language: z.string().min(2).max(20).describe("e.g. de or pt-BR"),
+        title: writeFields.title,
+        excerpt: writeFields.excerpt.default(""),
+        content: writeFields.content,
+      },
+      kind: "write",
+      preview: async (args) => {
+        const { post, lang, existing } = await translationTarget(
+          args.id,
+          args.language,
+        );
+        const update = existing && updateTool().preview;
+        if (existing && update)
+          return update(updateArgs(existing, args) as never);
+        return {
+          summary: `Save a ${lang} translation of “${post.title}” as a draft`,
+          details: [
+            { label: "Title", after: args.title },
+            ...(args.excerpt
+              ? [{ label: "Excerpt", after: args.excerpt }]
+              : []),
+          ],
+          body: { after: args.content },
+        };
+      },
+      run: async (args) => {
+        const { post, lang, existing } = await translationTarget(
+          args.id,
+          args.language,
+        );
+        if (existing)
+          return updateTool().run(updateArgs(existing, args) as never);
+        const saved = await createTranslation(viewer, post.id, lang, {
+          title: args.title,
+          excerpt: args.excerpt,
+          content: args.content,
+          aiSource: aiSourceOf(ctx),
+        });
+        invalidate(POSTS_TAG);
+        queueIndex(saved.id);
+        return {
+          text: json({
+            result: `Saved the ${lang} translation of “${post.title}” as a draft.`,
+            id: saved.id,
+            edit_url: siteUrl(`/admin/posts/${saved.id}`),
+          }),
+          target: `${post.type}:${saved.id}`,
+        };
+      },
+    }),
+
+    defineTool({
       name: "trash_post",
       title: "Move a post or page to the trash",
       description:
@@ -778,6 +868,77 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
         return {
           text: json({ result: `Updated the alt text of media ${item.id}.` }),
           target: `media:${item.id}`,
+        };
+      },
+    }),
+
+    defineTool({
+      name: "list_media",
+      title: "List media",
+      description:
+        "Lists the media library, newest first, with each item's alt text. Use missing_alt_text to find images that still need a description.",
+      input: {
+        search: z.string().max(200).optional(),
+        missing_alt_text: z.boolean().default(false),
+        page: z.number().int().min(1).default(1),
+      },
+      kind: "read",
+      run: async ({ search, missing_alt_text, page }) => {
+        need("upload_files", "browse media");
+        const items = missing_alt_text
+          ? await imagesMissingAltText(50)
+          : (await listMedia({ search, page, perPage: 30 })).items;
+        return {
+          text: json(
+            items.map((m) => ({
+              media_id: m.id,
+              title: m.title,
+              type: m.mimeType,
+              size: `${m.width ?? "?"}×${m.height ?? "?"}`,
+              alt: m.alt,
+              url: siteUrl(mediaUrl(m.path)),
+              viewable:
+                VISION_TYPES.has(m.mimeType) && m.size <= MAX_IMAGE_BYTES,
+            })),
+          ),
+        };
+      },
+    }),
+
+    defineTool({
+      name: "view_image",
+      title: "Look at an image",
+      description:
+        "Returns an image from the media library so you can see it, for example to write its alt text with set_image_alt_text. JPEG, PNG, GIF and WebP up to 5 MB.",
+      input: { media_id: z.number().int().positive() },
+      kind: "read",
+      run: async ({ media_id }) => {
+        need("upload_files", "view media");
+        const item = await getMedia(media_id);
+        if (!item)
+          throw new AgentError(`There is no media item with ID ${media_id}.`);
+        if (!VISION_TYPES.has(item.mimeType))
+          throw new AgentError(
+            `This is ${item.mimeType}; only JPEG, PNG, GIF and WebP images can be viewed.`,
+          );
+        if (item.size > MAX_IMAGE_BYTES)
+          throw new AgentError("This image is larger than 5 MB.");
+        const bytes = await storage().read(item.path);
+        if (!bytes) throw new AgentError("The image file is missing.");
+        return {
+          text: json({
+            media_id: item.id,
+            title: item.title,
+            filename: item.filename,
+            alt: item.alt,
+            caption: item.caption,
+          }),
+          images: [
+            {
+              data: Buffer.from(bytes).toString("base64"),
+              mimeType: item.mimeType,
+            },
+          ],
         };
       },
     }),
@@ -1147,14 +1308,201 @@ export function createAgentTools(ctx: ToolContext): AgentTool[] {
         };
       },
     }),
+
+    defineTool({
+      name: "create_form",
+      title: "Create a form",
+      description:
+        'Creates a form (contact, signup, survey, booking) from fields you design. Embed it in a post or page by adding <div data-form="ID"></div> on its own line in the body. Responses arrive in the admin and through get_form_responses.',
+      input: {
+        title: z.string().min(1).max(200).describe("Shown only in the admin"),
+        fields: z
+          .array(
+            z.object({
+              label: z.string().min(1).max(200),
+              type: z.enum(FIELD_TYPES).default("text"),
+              required: z.boolean().default(false),
+              placeholder: z.string().max(200).optional(),
+              help: z.string().max(500).optional(),
+              options: z
+                .array(z.string().max(200))
+                .max(50)
+                .optional()
+                .describe("Choices; needed for select, radio and checkbox"),
+            }),
+          )
+          .min(1)
+          .max(40),
+        submit_label: z.string().max(60).optional(),
+        success_message: z.string().max(1000).optional(),
+      },
+      kind: "write",
+      preview: async ({ title, fields, submit_label }) => {
+        need("edit_others_pages", "create forms");
+        return {
+          summary: `Create the form “${title}”`,
+          details: [
+            {
+              label: "Fields",
+              after: fields
+                .map((f) => `${f.label}${f.required ? " *" : ""} (${f.type})`)
+                .join(", "),
+            },
+            ...(submit_label ? [{ label: "Button", after: submit_label }] : []),
+          ],
+        };
+      },
+      run: async ({ title, fields, submit_label, success_message }) => {
+        need("edit_others_pages", "create forms");
+        const form = await createForm({
+          title,
+          fields,
+          settings: {
+            submitLabel: submit_label,
+            successMessage: success_message,
+          },
+        });
+        return {
+          text: json({
+            result: `Created form ${form.id}.`,
+            id: form.id,
+            embed: `<div data-form="${form.id}"></div>`,
+            fields: form.fields.map((f) => f.key),
+            edit_url: siteUrl(`/admin/forms/${form.id}`),
+          }),
+          target: `form:${form.id}`,
+        };
+      },
+    }),
+
+    // -----------------------------------------------------------------------
+    // Site upkeep
+    // -----------------------------------------------------------------------
+    defineTool({
+      name: "get_site_tasks",
+      title: "Find things to fix",
+      description:
+        "Lists upkeep work: published posts without an excerpt, images without alt text, and the site's Inbox (broken links, comments waiting, unread form responses, suggested fixes). You can do the writing yourself: read the post or view the image, then save with update_post or set_image_alt_text.",
+      input: {},
+      kind: "read",
+      run: async () => {
+        const [excerpts, images, inbox] = await Promise.all([
+          hasCap(viewer, "edit_others_posts") ? postsMissingExcerpts(20) : [],
+          hasCap(viewer, "upload_files") ? imagesMissingAltText(20) : [],
+          hasCap(viewer, "edit_others_pages") ? openSuggestions(50) : [],
+        ]);
+        return {
+          text: json({
+            posts_missing_excerpt: excerpts.map((p) => ({
+              id: p.id,
+              title: p.title,
+            })),
+            images_missing_alt_text: images.map((m) => ({
+              media_id: m.id,
+              title: m.title,
+              url: siteUrl(mediaUrl(m.path)),
+            })),
+            inbox: inbox.map((s) => ({
+              id: s.id,
+              title: s.title,
+              detail: s.detail || undefined,
+              ...(s.tool
+                ? { suggested_fix: { tool: s.tool, input: s.toolInput } }
+                : { needs_a_person: true }),
+              link: s.link ? siteUrl(s.link) : undefined,
+            })),
+          }),
+        };
+      },
+    }),
+
+    defineTool({
+      name: "resolve_inbox_item",
+      title: "Resolve an Inbox item",
+      description:
+        "Applies an Inbox item's suggested fix (only items with suggested_fix), or dismisses the item for 30 days. To fix it differently, make the change with the other tools, then dismiss the item.",
+      input: {
+        id: z.number().int().positive(),
+        action: z.enum(["apply", "dismiss"]),
+      },
+      kind: "write",
+      preview: async ({ id, action }) => {
+        const { item, tool } = await inboxItem(id, action);
+        if (!tool) return { summary: `Dismiss “${item.title}”`, details: [] };
+        const preview = await previewAgentTool(tool, item.toolInput);
+        if (!preview.ok) throw new AgentError(preview.text);
+        return preview.preview;
+      },
+      run: async ({ id, action }) => {
+        const { item, tool } = await inboxItem(id, action);
+        if (tool) {
+          // Runs as this agent, so the site's agent policy still applies
+          const outcome = await runAgentTool(ctx, tool, item.toolInput);
+          if (!outcome.ok) throw new AgentError(outcome.text);
+        }
+        await resolveSuggestion(id, tool ? "applied" : "dismissed", viewer.id);
+        return {
+          text: json({
+            result: tool
+              ? `Applied the fix for “${item.title}”.`
+              : `Dismissed “${item.title}”.`,
+          }),
+          target: `suggestion:${id}`,
+        };
+      },
+    }),
   ];
+
+  const updateTool = () =>
+    tools.find((t) => t.name === "update_post") as AgentTool;
+
+  const updateArgs = (
+    id: number,
+    args: { title: string; excerpt: string; content: string },
+  ) => ({
+    id,
+    title: args.title,
+    excerpt: args.excerpt,
+    content: args.content,
+  });
+
+  async function translationTarget(id: number, language: string) {
+    const lang = normalizeLanguageCode(language) ?? language;
+    if (!settings.languages.includes(lang))
+      throw new AgentError(
+        `This site doesn't translate into “${language}”. Its languages: ${settings.languages.join(", ") || "none yet"} (an administrator adds them under Settings → General).`,
+      );
+    const { post } = await load(id);
+    if (!canOnPost(viewer, "edit", post))
+      throw denied("You can't translate this item.");
+    const existing = (await getTranslations(post)).find(
+      (t) => t.lang === lang && t.id !== post.id,
+    );
+    return { post, lang, existing: existing?.id };
+  }
+
+  async function inboxItem(id: number, action: "apply" | "dismiss") {
+    need("edit_others_pages", "work through the Inbox");
+    const item = await getOpenSuggestion(id);
+    if (!item)
+      throw new AgentError(`Inbox item ${id} is gone or already handled.`);
+    if (action === "dismiss") return { item, tool: null };
+    const tool = tools.find((t) => t.name === item.tool);
+    if (!tool)
+      throw new AgentError(
+        "This item has no fix to apply; it needs a person. Dismiss it, or fix it another way.",
+      );
+    return { item, tool };
+  }
+
+  return tools;
 }
 
 // ---------------------------------------------------------------------------
 // Running tools
 // ---------------------------------------------------------------------------
 
-export type ToolOutcome = { ok: boolean; text: string };
+export type ToolOutcome = { ok: boolean; text: string; images?: ToolImage[] };
 
 function messageOf(error: unknown) {
   if (error instanceof z.ZodError)
@@ -1164,7 +1512,9 @@ function messageOf(error: unknown) {
   if (
     error instanceof AgentError ||
     error instanceof PostError ||
-    error instanceof CommentError
+    error instanceof CommentError ||
+    error instanceof FormError ||
+    error instanceof FormDefinitionError
   )
     return error.message;
   console.error("[agent] tool failed", error);
@@ -1200,7 +1550,7 @@ export async function runAgentTool(
     const result = await tool.run(parsed as never);
     // Reads aren't worth a log row each; changes always are
     if (tool.kind === "write") await log("ok", undefined, result.target);
-    return { ok: true, text: result.text };
+    return { ok: true, text: result.text, images: result.images };
   } catch (error) {
     const message = messageOf(error);
     await log(outcomeOf(error, message), message);

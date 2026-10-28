@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { posts } from "@/db/schema";
 import { aiConfigured } from "./ai/client";
 import { translatePost } from "./ai/translate";
+import type { AiSource } from "./ai-provenance";
 import { htmlToDoc } from "./content";
 import { translationGroup, translationLang } from "./i18n";
 import { docToMarkdown, markdownToHtml } from "./markdown";
@@ -79,12 +80,21 @@ export async function getTranslations(post: { id: number; meta: unknown }) {
     );
 }
 
-// Starts a translation as a draft: Claude translates it when AI is set up,
-// otherwise it's a copy to translate by hand. A person reviews and publishes.
+export type TranslatedText = {
+  title: string;
+  excerpt: string;
+  /** The body in Markdown. */
+  content: string;
+};
+
+// Starts a translation as a draft: from `supplied` text (an outside agent
+// translated it), by Claude when AI is set up, or as a copy to translate by
+// hand. A person reviews and publishes.
 export async function createTranslation(
   actor: Viewer,
   postId: number,
   lang: string,
+  supplied?: TranslatedText & { aiSource: AiSource },
 ) {
   const settings = await getSettings();
   if (!settings.languages.includes(lang))
@@ -105,20 +115,23 @@ export async function createTranslation(
   const markdown = docToMarkdown(source.content, {
     absolute: (u) => u,
     formUrl: (id) => siteUrl(`/wp-json/nordpress/v1/forms/${id}`),
+    editable: true,
   });
-  const ai = settings.aiEnabled && aiConfigured();
-  const translated = ai
-    ? await translatePost(
-        {
-          title: source.title,
-          excerpt: source.excerpt,
-          markdown,
-          to: lang,
-          from: settings.defaultLanguage,
-        },
-        actor.id,
-      )
-    : { title: source.title, excerpt: source.excerpt, content: markdown };
+  const ai = !supplied && settings.aiEnabled && aiConfigured();
+  const translated = supplied
+    ? supplied
+    : ai
+      ? await translatePost(
+          {
+            title: source.title,
+            excerpt: source.excerpt,
+            markdown,
+            to: lang,
+            from: settings.defaultLanguage,
+          },
+          actor.id,
+        )
+      : { title: source.title, excerpt: source.excerpt, content: markdown };
 
   const saved = await savePost(actor, {
     type: source.type as PostType,
@@ -132,7 +145,9 @@ export async function createTranslation(
     featuredMediaId: source.featuredMediaId,
     membersOnly:
       (source.meta as { membersOnly?: boolean }).membersOnly === true,
-    ...(ai && { aiSource: "translation" as const }),
+    ...(supplied
+      ? { aiSource: supplied.aiSource }
+      : ai && { aiSource: "translation" as const }),
   });
   await db
     .update(posts)

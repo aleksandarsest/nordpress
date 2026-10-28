@@ -127,7 +127,9 @@ export async function runAssistant(input: {
       client: "admin",
       ip: input.ip,
     };
-    const tools = createAgentTools(ctx);
+    // The chat history lives in the browser, too small for images; the
+    // assistant writes alt text with the site's own AI instead
+    const tools = createAgentTools(ctx).filter((t) => t.name !== "view_image");
     const byName = new Map(tools.map((t) => [t.name, t]));
     const definitions = toolDefinitions(tools);
     const systemBlocks = system(viewer, ctx);

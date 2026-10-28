@@ -67,4 +67,18 @@ describe("markdownToHtml", () => {
     );
     expect(JSON.stringify(doc)).not.toMatch(/script|onerror/);
   });
+
+  it("keeps form and video embeds through an edit", () => {
+    const html =
+      '<p>Before</p><div data-form="7"></div><figure data-video="youtube" data-id="dQw4w9WgXcQ"></figure>';
+    const editable = { ...options, editable: true };
+    const once = docToMarkdown(htmlToDoc(html), editable);
+    const doc = htmlToDoc(markdownToHtml(once));
+    expect(doc.content?.map((n) => n.type)).toEqual([
+      "paragraph",
+      "formEmbed",
+      "videoEmbed",
+    ]);
+    expect(docToMarkdown(doc, editable)).toBe(once);
+  });
 });
