@@ -1,0 +1,6 @@
+# HTTPS in front of Nordpress (docker-compose.yml, profile "https"). Caddy
+# gets and renews the certificate for SITE_DOMAIN on its own.
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

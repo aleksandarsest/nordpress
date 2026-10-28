@@ -36,6 +36,22 @@ Open http://localhost:3000. You'll be sent to `/install` to create the site and 
 
 ## Self-hosting
 
+### One command, on any server
+
+On a Linux server at any provider (Hetzner, DigitalOcean, Linode, OVH, a
+Raspberry Pi…), with your domain pointing at it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aleksandarsest/nordpress/main/install.sh | sudo bash
+```
+
+It asks for the domain, installs Docker if needed, makes the passwords,
+gets an HTTPS certificate (Caddy) and starts the site; then open your domain
+to create your account. On a server that already runs nginx or Apache, it
+offers to listen on `127.0.0.1:3000` behind it instead. Run it again to
+upgrade. More in [docs/self-hosting.md](docs/self-hosting.md), including
+moving a site from another Nordpress host.
+
 ### Docker
 
 Nordpress and PostgreSQL (with pgvector) in two containers:
@@ -53,7 +69,7 @@ docker compose up -d
 
 Open `SITE_URL` and the installer takes it from there. The first start takes about a minute: Nordpress prerenders pages from your database, so it builds on its own server rather than in the image. Later restarts are instant; after an upgrade it builds once more.
 
-- **HTTPS:** put a reverse proxy in front. With [Caddy](https://caddyserver.com) it's two lines: `example.com` and `reverse_proxy localhost:3000`.
+- **HTTPS:** add `SITE_DOMAIN=example.com` and `COMPOSE_PROFILES=https` to `.env`, and Caddy in `docker-compose.yml` gets the certificate. Or put your own reverse proxy in front of port 3000.
 - **Upgrading:** `git pull && docker compose up -d --build`. Migrations run automatically.
 - **Backups:** the `db` volume (or `docker compose exec db pg_dump -U nordpress nordpress`) and the `uploads` volume.
 - **Optional services:** add `VOYAGE_API_KEY`, `SMTP_URL`/`MAIL_FROM` or the `S3_*` settings to `.env`; `docker-compose.yml` passes them through.

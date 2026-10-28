@@ -2,6 +2,7 @@
 #   1. Create a .env file next to this one (see "Self-hosting" in the README)
 #   2. docker compose up -d
 #   3. Open SITE_URL and follow the installer
+# Or let install.sh do all of it, with HTTPS (the "https" profile below).
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -25,7 +26,8 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${PORT:-3000}:3000"
+      # install.sh sets APP_BIND=127.0.0.1, so only Caddy or your web server reaches it
+      - "${APP_BIND:-0.0.0.0}:${PORT:-3000}:3000"
     environment:
       DATABASE_URL: postgres://nordpress:${POSTGRES_PASSWORD:-nordpress}@db:5432/nordpress
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env (openssl rand -base64 32)}
@@ -50,8 +52,28 @@ services:
       - uploads:/app/storage/uploads
       - backups:/app/storage/backups
 
+  # HTTPS with automatic certificates, for SITE_DOMAIN. On with
+  # COMPOSE_PROFILES=https in .env (install.sh sets it).
+  caddy:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
 volumes:
   db:
   build:
   uploads:
   backups:
+  caddy-data:
+  caddy-config:
