@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PRESETS } from "@/lib/design";
 import { FIELD_TYPE_LABELS } from "@/lib/forms/fields";
 import {
   EMPTY_ANSWERS,
@@ -487,10 +488,28 @@ export function SetupWizard({
                       update({ theme: e.target.value as SitePlan["theme"] })
                     }
                   >
+                    <option value="studio">Studio (your own design)</option>
                     <option value="nord">Nord (modern cards)</option>
                     <option value="classic">Classic (simple reading)</option>
                   </select>
                 </div>
+                {plan.theme === "studio" && (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="plan-style">Style</Label>
+                    <select
+                      id="plan-style"
+                      className={select}
+                      value={plan.style}
+                      onChange={(e) => update({ style: e.target.value })}
+                    >
+                      {Object.entries(PRESETS).map(([key, p]) => (
+                        <option key={key} value={key}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {plan.theme === "nord" && (
                   <div className="grid gap-1.5">
                     <Label htmlFor="plan-accent">Accent color</Label>

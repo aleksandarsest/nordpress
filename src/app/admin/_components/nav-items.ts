@@ -133,10 +133,15 @@ const NAV: NavDef[] = [
   },
   {
     label: "Appearance",
-    href: "/admin/appearance/themes",
+    href: "/admin/appearance/design",
     icon: "appearance",
     cap: "manage_options",
     children: [
+      {
+        label: "Design",
+        href: "/admin/appearance/design",
+        cap: "manage_options",
+      },
       {
         label: "Themes",
         href: "/admin/appearance/themes",

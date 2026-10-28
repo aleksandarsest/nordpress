@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRESET_KEYS } from "../design";
 import { FIELD_TYPES } from "../forms/fields";
 
 // A starter site: what the setup wizard proposes and, once approved, creates.
@@ -71,7 +72,10 @@ export const sitePlanSchema = z.object({
     .describe(
       "Products for sale, only for shops and only ones the owner named",
     ),
-  theme: z.enum(["classic", "nord"]),
+  theme: z.enum(["studio", "classic", "nord"]),
+  style: z
+    .enum(PRESET_KEYS)
+    .describe("The Studio design style that fits the site best"),
   accent: z
     .enum(["frost", "green", "purple", "orange", "red"])
     .describe("Accent color for the Nord theme"),

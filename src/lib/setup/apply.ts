@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { posts, products } from "@/db/schema";
 import { htmlToDoc } from "../content";
+import { PRESETS } from "../design";
 import { createForm, deleteForm } from "../forms";
 import { DEFAULT_FORM_SETTINGS } from "../forms/fields";
 import { markdownToHtml } from "../markdown";
@@ -178,6 +179,7 @@ export async function applySitePlan(
 
     if (plan.theme === "nord")
       await saveThemeOptions("nord", { ...nordOptions, accent: plan.accent });
+    const style = PRESETS[plan.style]?.design;
     // Settings last, in one transaction
     await saveSettings({
       title: plan.title.trim() || settings.title,
@@ -185,6 +187,7 @@ export async function applySitePlan(
       siteAbout: plan.site_about.trim(),
       brandVoice: plan.brand_voice.trim(),
       theme: plan.theme,
+      ...(plan.theme === "studio" && style && { design: style }),
       showOnFront: home ? "page" : "posts",
       pageOnFront: home ? home.id : null,
       pageForPosts: blogPage,

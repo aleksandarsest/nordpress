@@ -28,7 +28,7 @@ Rules for the copy:
 - Contact form: only the fields this business needs, usually name, email and message, plus at most two specific questions.
 - Products: only for shops, only the ones the owner listed, with the price they gave (or empty), and a one-sentence summary that doesn't invent details. Otherwise an empty list.
 - Contact page: link to it with its slug, the page title in lowercase with hyphens (e.g. [Book a table](/reservations) for a page titled "Reservations").
-- Theme: "nord" (calm, modern, card grid; good for businesses and organizations) or "classic" (simple reading layout; good for writing and portfolios). Pick the accent color that fits the brand.
+- Theme: "studio" (recommended; the design comes from a style) and a style: "nordic" (calm, professional), "bakery" (warm, handmade, food), "noir" (dark, editorial, visual work), "fresh" (green, friendly, organizations), "elegant" (refined, events, beauty), "tech" (dark, technical), "newspaper" (news, many posts), "playful" (bold, colorful, shops for young audiences). Set accent to "frost"; it's only used by the older Nord theme.
 - Markdown only: headings start at ##, no HTML, no images.`;
 
 export async function draftSitePlan(

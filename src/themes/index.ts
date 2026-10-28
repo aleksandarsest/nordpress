@@ -3,5 +3,6 @@
 import type { ThemeDefinition } from "@/lib/themes/types";
 import classic from "./classic";
 import nord from "./nord";
+import studio from "./studio";
 
-export const installedThemes: ThemeDefinition[] = [classic, nord];
+export const installedThemes: ThemeDefinition[] = [studio, classic, nord];

@@ -177,7 +177,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Friendly and professional. Plain words, short sentences.\nSpeak to the customer as “you”.\nNever promise results we can't guarantee.",
         homepage: "page",
-        theme: "nord",
+        theme: "studio",
+        style: "nordic",
         accent: "frost",
         pages: [
           {
@@ -228,7 +229,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Warm and helpful, like a good shop assistant.\nDescribe products concretely: what they are, what they're made of, who they're for.\nNo hype.",
         homepage: "page",
-        theme: "nord",
+        theme: "studio",
+        style: "playful",
         accent: "orange",
         pages: [
           {
@@ -270,7 +272,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Warm and inviting, a little playful.\nTalk about food concretely: ingredients, how it's made.\nKeep it short; people are hungry.",
         homepage: "page",
-        theme: "nord",
+        theme: "studio",
+        style: "bakery",
         accent: "red",
         pages: [
           {
@@ -312,7 +315,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Confident, clear and personal. First person (“I”).\nShow how you work and what the client gets.\nNo buzzwords.",
         homepage: "page",
-        theme: "classic",
+        theme: "studio",
+        style: "tech",
         accent: "frost",
         pages: [
           {
@@ -343,7 +347,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Confident but understated. Let the work speak.\nFirst person (“I”).\nShort captions, no buzzwords.",
         homepage: "page",
-        theme: "classic",
+        theme: "studio",
+        style: "noir",
         accent: "purple",
         pages: [
           {
@@ -375,7 +380,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Warm, welcoming and clear. Write for newcomers.\nSay “we” for the organization and “you” for the reader.\nAvoid jargon and acronyms.",
         homepage: "page",
-        theme: "nord",
+        theme: "studio",
+        style: "fresh",
         accent: "green",
         pages: [
           {
@@ -413,7 +419,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Joyful and warm, but practical.\nMake times, places and what to bring easy to find.\nSpeak to guests as “you”.",
         homepage: "page",
-        theme: "classic",
+        theme: "studio",
+        style: "elegant",
         accent: "purple",
         contact_form: { include: true, fields: FORMS.event },
         pages: [
@@ -459,7 +466,8 @@ export function templatePlan(kind: SiteKind, answers: SiteAnswers): SitePlan {
         brand_voice:
           "Personal, curious and direct. First person.\nExplain things simply; link to sources.\nNo clickbait headlines.",
         homepage: "posts",
-        theme: "classic",
+        theme: "studio",
+        style: "newspaper",
         accent: "frost",
         contact_form: { include: false, fields: FORMS.blog },
         pages: [

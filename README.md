@@ -426,6 +426,22 @@ Build forms under **Forms** and drop them into any post or page with the editor'
 
 Field keys are fixed on the first save, so renaming a question never orphans earlier responses.
 
+## Design
+
+New sites use **Studio**, a theme you shape yourself under **Appearance → Design**, with a live preview of your real pages at desktop, tablet and phone sizes. Changes show instantly and reach visitors when you publish.
+
+- **Styles:** eight ready-made designs (Nordic, Bakery, Noir, Fresh, Elegant, Tech, Newspaper, Playful) to start from. **Shuffle** varies one while keeping your brand color, and **Colors from my logo** takes the main color from your logo. With an AI key, **Describe your style** ("warm and handmade, earthy colors") picks the options for you.
+- **Colors:** one brand color, light or dark mode, a neutral, warm, cool or brand-tinted background, and a plain, colored or dark header. Everything else is derived from those, and text, links, buttons and the header always meet WCAG AA contrast, whatever color you pick (the tests check this for awkward colors like pure yellow and white).
+- **Fonts:** eight pairings (Modern, Editorial, Classic, Friendly, Technical, Elegant, Bold, Warm) in three sizes. Fonts are served from your own site, so visitors' browsers never contact Google.
+- **Shapes and layout:**
+  - corners and button style;
+  - header layout: logo left, centered, or menu below;
+  - page width and spacing;
+  - post lists as cards, a list or a magazine layout.
+- **Responsive:** on phones the menu folds into a **Menu** button that opens under the header, with no JavaScript needed. Images, type and spacing scale with the screen.
+
+Forms, the newsletter signup and comments pick up the design too. Nord and Classic stay available under **Appearance → Themes**. Theme authors: a design is a set of CSS variables (`--d-*`) and data attributes; see `src/themes/studio` and `src/lib/design`.
+
 ## Themes and menus
 
 Themes live in `src/themes/<slug>/` and are registered in `src/themes/index.ts`. Two ship with Nordpress: **Classic**, a single-column reading theme, and **Nord**, with a dark header, a card grid and the Nord palette. Switch between them under **Appearance → Themes**; content, menus and settings stay as they are.

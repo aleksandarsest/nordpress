@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/db";
 import type { Role } from "@/db/schema";
 import { options } from "@/db/schema";
+import { DEFAULT_DESIGN, type SiteDesign } from "./design";
 
 export const PERMALINK_STRUCTURES = {
   plain: "/?p=%post_id%",
@@ -86,6 +87,8 @@ export type SiteSettings = {
   siteLogo: number | null;
   /** Media id of the square icon browsers show on tabs and bookmarks. */
   siteIcon: number | null;
+  /** Colors, fonts and layout for the Studio theme (see lib/design). */
+  design: SiteDesign;
   /** The dashboard's getting-started list was closed. */
   checklistDismissed: boolean;
   /** Automatic backups of the whole site. */
@@ -154,6 +157,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   newsletterAutoSend: false,
   newsletterSignupAfterPosts: true,
   newsletterFooter: "",
+  design: DEFAULT_DESIGN,
   checklistDismissed: false,
   siteLogo: null,
   siteIcon: null,
@@ -164,7 +168,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   agentsCanPublish: false,
   activePlugins: [],
   menuLocations: {},
-  theme: "classic",
+  theme: "studio",
   setupCompleted: false,
 };
 

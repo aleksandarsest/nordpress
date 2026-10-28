@@ -1,0 +1,422 @@
+/* Studio theme: every color, font, size and shape comes from the design
+   variables (--d-*) set on .studio by lib/design. Layout variants switch on
+   data attributes, so the live design preview needs no reload. */
+
+.studio {
+  /* The UI components used inside the site (forms, newsletter, comments)
+     read these, so they follow the design too */
+  --background: var(--d-bg);
+  --foreground: var(--d-text);
+  --card: var(--d-surface);
+  --card-foreground: var(--d-text);
+  --popover: var(--d-surface);
+  --popover-foreground: var(--d-text);
+  --primary: var(--d-accent);
+  --primary-foreground: var(--d-on-accent);
+  --secondary: var(--d-surface-2);
+  --secondary-foreground: var(--d-text);
+  --muted: var(--d-surface-2);
+  --muted-foreground: var(--d-muted);
+  --accent: var(--d-surface-2);
+  --accent-foreground: var(--d-text);
+  --border: var(--d-border);
+  --input: var(--d-border);
+  --ring: var(--d-accent);
+  --radius: var(--d-radius);
+
+  --gap: calc(1.5rem * var(--d-space));
+
+  background: var(--d-bg);
+  color: var(--d-text);
+  font-family: var(--d-font-body), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--d-size);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.studio :where(h1, h2, h3, h4) {
+  font-family: var(--d-font-heading), var(--d-font-body), ui-serif, serif;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.studio a:focus-visible,
+.studio button:focus-visible,
+.studio summary:focus-visible {
+  outline: 2px solid var(--d-link);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.studio-container {
+  width: 100%;
+  max-width: var(--d-width);
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 2rem);
+}
+
+/* Header ------------------------------------------------------------ */
+
+.studio-header {
+  background: var(--d-header-bg);
+  color: var(--d-header-text);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--d-header-text) 12%, transparent);
+}
+
+.studio-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: calc(1rem * var(--d-space));
+}
+
+.studio-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--d-font-heading), var(--d-font-body), sans-serif;
+  font-weight: 700;
+  font-size: 1.3em;
+  letter-spacing: -0.02em;
+}
+
+.studio-brand img {
+  height: 2.5rem;
+  width: auto;
+  max-width: 14rem;
+  object-fit: contain;
+}
+
+.studio-tagline {
+  color: var(--d-header-muted);
+  font-size: 0.85em;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.studio-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.studio-nav a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--d-radius);
+  color: var(--d-header-text);
+  font-weight: 500;
+  font-size: 0.95em;
+}
+
+.studio-nav a:hover {
+  background: color-mix(in srgb, var(--d-header-text) 10%, transparent);
+}
+
+.studio-nav li {
+  position: relative;
+}
+
+.studio-nav .studio-submenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  display: grid;
+  gap: 0;
+  min-width: 13rem;
+  padding: 0.375rem;
+  border-radius: var(--d-radius);
+  background: var(--d-surface);
+  border: 1px solid var(--d-border);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.12);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.studio-nav .studio-submenu a {
+  color: var(--d-text);
+}
+
+.studio-nav li:hover > .studio-submenu,
+.studio-nav li:focus-within > .studio-submenu {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Logo and menu centered on their own rows */
+.studio[data-header="centered"] .studio-header-inner {
+  flex-direction: column;
+  text-align: center;
+}
+.studio[data-header="centered"] .studio-brand {
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.studio[data-header="centered"] .studio-nav ul {
+  justify-content: center;
+}
+
+/* Logo first, the menu on a row of its own below */
+.studio[data-header="stacked"] .studio-header-inner {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.studio[data-header="stacked"] .studio-nav {
+  width: 100%;
+  border-top: 1px solid
+    color-mix(in srgb, var(--d-header-text) 14%, transparent);
+  padding-top: 0.5rem;
+}
+.studio[data-header="stacked"] .studio-nav a {
+  padding-inline: 0.5rem;
+}
+
+/* Small screens: the menu folds into a button */
+.studio-menu-toggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .studio-header-inner,
+  .studio[data-header] .studio-header-inner {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    text-align: left;
+  }
+  .studio[data-header] .studio-brand {
+    flex-direction: row;
+  }
+  .studio-nav-desktop {
+    display: none;
+  }
+  .studio-menu-toggle {
+    display: block;
+  }
+  .studio-menu-toggle > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--d-radius);
+    border: 1px solid color-mix(in srgb, var(--d-header-text) 25%, transparent);
+    font-weight: 500;
+  }
+  .studio-menu-toggle > summary::-webkit-details-marker {
+    display: none;
+  }
+  .studio-header {
+    position: relative;
+  }
+  /* The open menu drops down under the header, over the page */
+  .studio-menu-toggle .studio-nav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding-inline: clamp(1rem, 4vw, 2rem);
+    background: var(--d-header-bg);
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--d-header-text) 14%, transparent);
+    box-shadow: 0 16px 32px rgb(0 0 0 / 0.12);
+  }
+  .studio-menu-toggle .studio-nav ul {
+    flex-direction: column;
+    gap: 0;
+    padding-block: 0.5rem;
+  }
+  .studio-menu-toggle .studio-nav a {
+    border-radius: 0;
+    padding: 0.75rem 0.25rem;
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--d-header-text) 10%, transparent);
+  }
+  .studio-menu-toggle .studio-submenu {
+    position: static;
+    visibility: visible;
+    opacity: 1;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    min-width: 0;
+    padding: 0 0 0 1rem;
+  }
+  .studio-menu-toggle .studio-submenu a {
+    color: var(--d-header-text);
+  }
+}
+
+/* Content ------------------------------------------------------------ */
+
+.studio-main {
+  flex: 1;
+  padding-block: calc(3rem * var(--d-space));
+}
+
+.studio-card {
+  background: var(--d-surface);
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius);
+}
+
+.studio-muted {
+  color: var(--d-muted);
+}
+
+.studio-link {
+  color: var(--d-link);
+  font-weight: 500;
+}
+
+.studio-link:hover,
+.studio .prose a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.studio-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65em 1.25em;
+  border-radius: var(--d-button-radius);
+  background: var(--d-accent);
+  color: var(--d-on-accent);
+  font-weight: 600;
+  font-size: 0.95em;
+  border: 2px solid var(--d-accent);
+}
+
+.studio[data-buttons="outline"] .studio-button {
+  background: transparent;
+  color: var(--d-link);
+  border-color: currentColor;
+}
+
+/* The shared UI buttons (forms, newsletter) follow the button style */
+.studio [data-slot="button"],
+.studio form button[type="submit"] {
+  border-radius: var(--d-button-radius);
+}
+
+.studio .prose {
+  --tw-prose-body: var(--d-text);
+  --tw-prose-headings: var(--d-text);
+  --tw-prose-lead: var(--d-muted);
+  --tw-prose-links: var(--d-link);
+  --tw-prose-bold: var(--d-text);
+  --tw-prose-counters: var(--d-muted);
+  --tw-prose-bullets: var(--d-accent);
+  --tw-prose-hr: var(--d-border);
+  --tw-prose-quotes: var(--d-text);
+  --tw-prose-quote-borders: var(--d-accent);
+  --tw-prose-captions: var(--d-muted);
+  --tw-prose-code: var(--d-text);
+  --tw-prose-pre-code: var(--d-text);
+  --tw-prose-pre-bg: var(--d-surface-2);
+  --tw-prose-th-borders: var(--d-border);
+  --tw-prose-td-borders: var(--d-border);
+  font-size: 1em;
+  max-width: none;
+}
+
+.studio .prose :where(img) {
+  border-radius: var(--d-radius);
+}
+
+.studio .prose :where(h2, h3, h4) {
+  font-family: var(--d-font-heading), var(--d-font-body), serif;
+}
+
+/* Post lists --------------------------------------------------------- */
+
+.studio-posts {
+  display: grid;
+  gap: var(--gap);
+}
+
+.studio[data-posts="cards"] .studio-posts {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+}
+
+.studio-post {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.studio-post-image img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.studio-post-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: calc(1.5rem * var(--d-space));
+}
+
+/* List: image beside the text on wider screens */
+@media (min-width: 640px) {
+  .studio[data-posts="list"] .studio-post {
+    flex-direction: row;
+  }
+  .studio[data-posts="list"] .studio-post-image {
+    flex: 0 0 34%;
+  }
+  .studio[data-posts="list"] .studio-post-image img {
+    height: 100%;
+    aspect-ratio: 4 / 3;
+  }
+}
+
+/* Magazine: the newest post large, the rest in a grid */
+.studio[data-posts="magazine"] .studio-posts {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+}
+.studio[data-posts="magazine"] .studio-post:first-child {
+  grid-column: 1 / -1;
+}
+@media (min-width: 768px) {
+  .studio[data-posts="magazine"] .studio-post:first-child {
+    flex-direction: row;
+  }
+  .studio[data-posts="magazine"] .studio-post:first-child .studio-post-image {
+    flex: 0 0 58%;
+  }
+  .studio[data-posts="magazine"]
+    .studio-post:first-child
+    .studio-post-image
+    img {
+    height: 100%;
+    aspect-ratio: 3 / 2;
+  }
+  .studio[data-posts="magazine"] .studio-post:first-child h2 {
+    font-size: 2em;
+  }
+}
+
+/* Footer ------------------------------------------------------------- */
+
+.studio-footer {
+  background: var(--d-surface-2);
+  border-top: 1px solid var(--d-border);
+  color: var(--d-muted);
+  font-size: 0.9em;
+}
+
+.studio .studio-footer a:hover {
+  color: var(--d-text);
+}
