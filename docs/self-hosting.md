@@ -4,13 +4,13 @@ Nordpress is yours to run anywhere: a server at any provider, a Docker
 platform, or a Node.js host with a managed database. Pick the first option
 that fits.
 
-| You have | Use |
-| --- | --- |
-| A Linux server (VPS) and a domain | [One command](#one-command) |
-| A server that already runs nginx or Apache | [One command](#one-command), behind your web server |
-| Coolify, Dokploy, CapRover, Portainer or another Docker platform | [Docker Compose](#docker-platforms) |
-| A Node.js host and a managed Postgres | [Node.js hosts](#nodejs-hosts) |
-| Shared PHP hosting (cPanel, Plesk) only | Not enough on its own; see [below](#shared-php-hosting) |
+| You have                                                         | Use                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------- |
+| A Linux server (VPS) and a domain                                | [One command](#one-command)                             |
+| A server that already runs nginx or Apache                       | [One command](#one-command), behind your web server     |
+| Coolify, Dokploy, CapRover, Portainer or another Docker platform | [Docker Compose](#docker-platforms)                     |
+| A Node.js host and a managed Postgres                            | [Node.js hosts](#nodejs-hosts)                          |
+| Shared PHP hosting (cPanel, Plesk) only                          | Not enough on its own; see [below](#shared-php-hosting) |
 
 ## One command
 
@@ -21,6 +21,7 @@ Linode, Vultr, OVH, Scaleway, AWS Lightsail, a machine at home.
 1. **Point the domain at the server.** At your domain's DNS provider, add an
    `A` record for the domain with the server's IP address. It can take a few minutes to take effect.
 2. **Log in to the server** (`ssh root@your-server-ip`) and run:
+
    ```bash
    curl -fsSL https://raw.githubusercontent.com/aleksandarsest/nordpress/main/install.sh | sudo bash
    ```
