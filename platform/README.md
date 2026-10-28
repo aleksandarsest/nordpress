@@ -100,6 +100,20 @@ By hand: run as root on the server, and replace each `PASSWORD` with its own
 9. **Invites:** `np-platform invite 1 "for Ana"` prints a code. Send people
    `https://aleksa.me/signup?invite=<code>`.
 
+## HTTPS for name.aleksa.me
+
+Each new site gets its own certificate as soon as it's created, so the
+only DNS step is one record, once: an `A` record named `*` pointing at the
+server. Sites made before that get theirs within ten minutes of it. (Or turn
+on a wildcard certificate with `enable-subdomains.sh`; sites then need
+nothing of their own.)
+
+## Updates
+
+`platform/bin/update-server.sh` moves the server to the newest version GitHub
+has built and gives every site the new build. Run it once with `--auto` and
+it installs a timer that does this every night at about 04:00.
+
 ## Own domains
 
 A site's owner can move it to a domain they bought (Your sites → Use your own

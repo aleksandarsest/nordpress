@@ -23,6 +23,7 @@ export type Site = {
   auth_secret: string;
   internal_token: string;
   cron_secret: string;
+  https: boolean;
   created_at: Date;
 };
 
@@ -56,6 +57,8 @@ export async function migrate() {
       created_at timestamptz not null default now()
     )`;
   await sql`alter table accounts add column if not exists name text not null default ''`;
+  // Whether name.<domain> has its own certificate (no wildcard needed)
+  await sql`alter table sites add column if not exists https boolean not null default false`;
   await sql`
     create table if not exists domains (
       domain text primary key,

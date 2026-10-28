@@ -120,6 +120,10 @@ export async function provisionSite(
         `Installing failed: ${(await res.json().catch(() => ({}))).error ?? res.status}`,
       );
     await sql`update sites set status = 'active', error = null where id = ${site.id}`;
+    // HTTPS at name.<domain> right away (domains.ts imports this file, hence the late import)
+    await import("./domains.ts")
+      .then((d) => d.secureSites())
+      .catch(() => {});
   } catch (error) {
     console.error(`[provision] ${site.subdomain}`, error);
     await sql`update sites set status = 'failed', error = ${(error as Error).message} where id = ${site.id}`;

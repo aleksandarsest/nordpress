@@ -17,6 +17,7 @@ import {
   connectDomain,
   connectPendingDomains,
   removeDomain,
+  secureSites,
 } from "./domains.ts";
 import {
   checkDomain,
@@ -449,6 +450,9 @@ async function cron(site: Site, path: string) {
   }).catch((error) => console.error(`[cron] ${site.subdomain}${path}`, error));
 }
 
+// Sites created before HTTPS was set up get it right away
+void secureSites().catch((error) => console.error("[domains]", error));
+
 // Each site's scheduled work. Newsletters go out every 10 minutes from sites
 // that are awake (sending starts while someone is publishing). Once a day
 // every site wakes for its checks and backup, one at a time.
@@ -458,6 +462,7 @@ setInterval(
     await connectPendingDomains().catch((error) =>
       console.error("[domains]", error),
     );
+    await secureSites().catch((error) => console.error("[domains]", error));
     const sites = await sql<
       Site[]
     >`select * from sites where status = 'active'`;

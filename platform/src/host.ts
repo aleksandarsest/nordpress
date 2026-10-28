@@ -17,6 +17,7 @@ export function npSite(
     | "remove"
     | "template"
     | "env"
+    | "site-cert"
     | "domain-add"
     | "domain-remove",
   name?: string,

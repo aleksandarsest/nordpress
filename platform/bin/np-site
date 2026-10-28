@@ -9,6 +9,7 @@
 #   np-site remove <name>    stop the site and delete its folder, settings and user
 #   np-site env <name>       replace the site's settings with stdin
 #   np-site template         download the build for the checked-out version
+#   np-site site-cert <name>  HTTPS for name.<platform domain>
 #   np-site domain-add <domain> [www]   serve a site's own domain, with a certificate
 #   np-site domain-remove <domain>
 set -eu
@@ -53,6 +54,50 @@ user="np-$name"
 dir="$SITES/$name"
 unit="nordpress-site@$name.service"
 
+# nginx forwards these names to the platform over HTTPS, with a certificate
+# from certbot (renewed by its timer). Does nothing once that's in place.
+serve_https() {
+  local conf="$NGINX/$1.conf" cert=$2
+  shift 2
+  if [ -f "$conf" ] && grep -q ssl_certificate "$conf"; then return 0; fi
+  if [ ! -f "$conf" ]; then
+    cat > "$conf" <<NGINXCONF
+# Served by the Nordpress platform (np-site); certbot adds HTTPS
+server {
+  listen 80;
+  listen [::]:80;
+  server_name $*;
+  client_max_body_size 50m;
+  location / {
+    proxy_pass http://127.0.0.1:$PLATFORM_PORT;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$remote_addr;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 300s;
+    proxy_buffering off;
+  }
+}
+NGINXCONF
+    if ! nginx -t >/dev/null 2>&1; then
+      rm -f "$conf"
+      fail "nginx didn't accept the settings for $1"
+    fi
+    systemctl reload nginx
+  fi
+  local args=""
+  for n in "$@"; do args="$args -d $n"; done
+  # shellcheck disable=SC2086
+  if ! certbot --nginx --non-interactive --agree-tos --redirect --keep-until-expiring \
+    --cert-name "$cert" $args >/tmp/np-certbot.log 2>&1; then
+    tail -5 /tmp/np-certbot.log >&2
+    rm -f "$conf"
+    systemctl reload nginx
+    fail "couldn't get a certificate for $*"
+  fi
+  systemctl reload nginx
+}
+
 # Each site gets its own copy of the build: Next.js writes regenerated pages into it
 copy_build() {
   [ -f "$TEMPLATE/.next/BUILD_ID" ] || fail "no build yet; run: np-site template"
@@ -91,47 +136,19 @@ case "$action" in
     (umask 077 && cat > "$SETTINGS/$name.env.new" && mv "$SETTINGS/$name.env.new" "$SETTINGS/$name.env")
     ;;
   domain-add)
-    conf="$NGINX/nordpress-domain-$name.conf"
-    names="$name"
-    certnames="-d $name"
     if [ "${3:-}" = www ]; then
-      names="$name www.$name"
-      certnames="$certnames -d www.$name"
+      serve_https "nordpress-domain-$name" "nordpress-$name" "$name" "www.$name"
+    else
+      serve_https "nordpress-domain-$name" "nordpress-$name" "$name"
     fi
-    if [ ! -f "$conf" ]; then
-      cat > "$conf" <<NGINXCONF
-# A Nordpress site's own domain (np-site domain-add); certbot adds HTTPS
-server {
-  listen 80;
-  listen [::]:80;
-  server_name $names;
-  client_max_body_size 50m;
-  location / {
-    proxy_pass http://127.0.0.1:$PLATFORM_PORT;
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Forwarded-For \$remote_addr;
-    proxy_set_header X-Forwarded-Proto \$scheme;
-    proxy_read_timeout 300s;
-    proxy_buffering off;
-  }
-}
-NGINXCONF
-      if ! nginx -t >/dev/null 2>&1; then
-        rm -f "$conf"
-        fail "nginx didn't accept the settings for $name"
-      fi
-      systemctl reload nginx
-    fi
-    # shellcheck disable=SC2086
-    if ! certbot --nginx --non-interactive --agree-tos --redirect --keep-until-expiring \
-      --cert-name "nordpress-$name" $certnames >/tmp/np-certbot.log 2>&1; then
-      tail -5 /tmp/np-certbot.log >&2
-      rm -f "$conf"
-      systemctl reload nginx
-      fail "couldn't get a certificate for $name"
-    fi
-    systemctl reload nginx
+    ;;
+  site-cert)
+    # Each hosted site's name.<platform domain>, while no wildcard covers them
+    [ -d "$dir" ] || fail "no site called $name"
+    if [ -f "$NGINX/nordpress-subdomains.conf" ]; then exit 0; fi
+    platform=$(sed -n 's/^PLATFORM_DOMAIN=//p' /etc/nordpress/platform.env)
+    [ -n "$platform" ] || fail "PLATFORM_DOMAIN isn't set"
+    serve_https "nordpress-site-$name" "nordpress-site-$name" "$name.$platform"
     ;;
   domain-remove)
     certbot delete --non-interactive --cert-name "nordpress-$name" >/dev/null 2>&1 || true
@@ -144,6 +161,11 @@ NGINXCONF
     rm -rf "$dir"
     rm -f "$SETTINGS/$name.env"
     if id "$user" >/dev/null 2>&1; then userdel "$user"; fi
+    if [ -f "$NGINX/nordpress-site-$name.conf" ]; then
+      certbot delete --non-interactive --cert-name "nordpress-site-$name" >/dev/null 2>&1 || true
+      rm -f "$NGINX/nordpress-site-$name.conf"
+      nginx -t >/dev/null 2>&1 && systemctl reload nginx
+    fi
     ;;
   template)
     want=$(git -C "$APP" rev-parse HEAD)
@@ -161,6 +183,6 @@ NGINXCONF
     echo "Build $want is ready."
     ;;
   *)
-    fail "usage: np-site create|start|stop|restart|status|update|remove|env <name>, np-site template, or np-site domain-add|domain-remove <domain> [www]"
+    fail "usage: np-site create|start|stop|restart|status|update|remove|env|site-cert <name>, np-site template, or np-site domain-add|domain-remove <domain> [www]"
     ;;
 esac

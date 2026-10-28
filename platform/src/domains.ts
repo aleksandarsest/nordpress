@@ -114,3 +114,26 @@ export async function connectPendingDomains() {
       and d.created_at > now() - interval '7 days'`;
   for (const d of pending) await connectDomain(d.site, d);
 }
+
+/**
+ * Gives each live site HTTPS at name.<domain>: a certificate of its own,
+ * once the name resolves to this server (a *.<domain> DNS record covers
+ * every site). Nothing to do where a wildcard certificate is set up.
+ */
+export async function secureSites() {
+  if (!config.publicIp) return;
+  const sites = await sql<Site[]>`
+    select * from sites where status = 'active' and not https order by id`;
+  for (const site of sites) {
+    const name = `${site.subdomain}.${config.domain}`;
+    const a = await lookup(name, "A");
+    if (!a.includes(config.publicIp)) continue;
+    try {
+      await npSite("site-cert", site.subdomain);
+      await sql`update sites set https = true where id = ${site.id}`;
+      console.log(`[domains] ${name} has HTTPS`);
+    } catch (error) {
+      console.error(`[domains] ${name}`, error);
+    }
+  }
+}
