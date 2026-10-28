@@ -85,6 +85,10 @@ server {
     proxy_set_header X-Forwarded-Proto https;
     proxy_read_timeout 300s;
     proxy_buffering off;
+    # Room for large response headers (cookies, links)
+    proxy_buffer_size 16k;
+    proxy_buffers 8 16k;
+    proxy_busy_buffers_size 32k;
   }
 }
 NGINX
