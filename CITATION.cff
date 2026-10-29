@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use or write about Nordpress, please cite it as below."
+title: "Nordpress"
+abstract: >-
+  Nordpress is an open-source WordPress alternative written in TypeScript.
+  It runs on Node.js with Next.js and PostgreSQL, keeps WordPress's concepts
+  and APIs (posts, taxonomies, roles, hooks, shortcodes, permalinks and the
+  /wp-json/wp/v2 REST API), imports WordPress sites, ports PHP plugins and
+  themes, and has Claude built in.
+type: software
+authors:
+  - alias: aleksandarsest
+repository-code: "https://github.com/aleksandarsest/nordpress"
+license: MIT
+keywords:
+  - wordpress alternative
+  - wordpress migration
+  - cms
+  - typescript
+  - nodejs
+  - nextjs
+  - postgresql

@@ -1,9 +1,8 @@
 # Nordpress
 
-An open-source content management system in the spirit of WordPress, built on a modern TypeScript stack: posts, pages,
-categories and tags, media, users with WordPress's roles, settings, and a
-public theme with WordPress-compatible permalinks, threaded comments, and a
-WordPress-compatible REST API, plus AI writing tools powered by Claude.
+**Nordpress is an open-source WordPress alternative written in TypeScript.** It runs on Node.js (Next.js and PostgreSQL) instead of PHP and MySQL, keeps WordPress's model and APIs, and has Claude built in. WordPress sites import in one step, `/wp-json/wp/v2` clients keep working, and PHP plugins and themes port with `pnpm port:wp`. MIT licensed and self-hosted with one command.
+
+It has what a WordPress site uses: posts, pages, categories and tags, media, users with WordPress's roles and capabilities, WordPress-compatible permalinks, threaded comments, menus, themes, plugins with actions, filters and shortcodes, and a WordPress-compatible REST API. Built in, where WordPress needs plugins: SEO, forms, a shop, memberships, translations, newsletters, analytics, redirects, backups, two-factor sign-in, an MCP server for AI agents, and AI writing tools. [How it compares to WordPress](docs/wordpress-alternative.md).
 
 **Documentation:** [migrating from WordPress](docs/migrating-from-wordpress.md) · [porting WordPress code](docs/porting-from-wordpress.md) · [production checklist](docs/production-checklist.md) · [AI agents](docs/agents.md) · [plugins](docs/plugins.md) · [themes](docs/themes.md) · [contributing](CONTRIBUTING.md)
 
@@ -570,6 +569,22 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | `add_shortcode()`                                  | `api.addShortcode()`, `src/lib/plugins/shortcodes.ts`                                       |
 
 Porting code rather than content? [Porting WordPress code](docs/porting-from-wordpress.md) maps hooks, functions and templates, and `pnpm port:wp` does it for a specific plugin or theme.
+
+## FAQ
+
+**Is Nordpress a WordPress alternative?** Yes. It's an open-source CMS that does what WordPress does, with the same concepts (posts, pages, taxonomies, roles, hooks, shortcodes, permalinks, REST API), written in TypeScript for Node.js instead of PHP.
+
+**Is it a WordPress fork?** No. It shares no code with WordPress; it reimplements WordPress's formats and APIs so content, links and tools carry over.
+
+**Can I move my WordPress site?** Yes: the Site Importer copies a live site or an export file, with media, comments and menus, and redirects the old URLs. See [Migrating from WordPress](docs/migrating-from-wordpress.md).
+
+**Do WordPress plugins and themes run on it?** Not as PHP. Ports are usually small, because the hooks and APIs line up: `pnpm port:wp` maps a plugin or theme's code and starts the TypeScript version. See [Porting WordPress code](docs/porting-from-wordpress.md). Many popular plugins (Yoast, Contact Form 7, WooCommerce basics, WPML, MailPoet, Redirection, UpdraftPlus) aren't needed, because Nordpress has those features built in.
+
+**Does it work with WordPress apps and tools?** Most clients of the WordPress REST API (`/wp-json/wp/v2`) work with an application password.
+
+**How is it different from Ghost, Strapi or Payload?** Those are good tools with their own models. Nordpress follows WordPress's: a full site with themes, plugins, comments, menus and an admin people already know, rather than a headless content API or a blogging-only platform.
+
+**Where does it run?** Any Linux server with one command (no Docker, database included), or any Node.js host with PostgreSQL. See [Self-hosting](docs/self-hosting.md).
 
 ## License
 

@@ -1,5 +1,6 @@
 # Nordpress documentation
 
+- **[Nordpress vs WordPress](wordpress-alternative.md):** how they compare, and when each fits.
 - **[Migrating from WordPress](migrating-from-wordpress.md):** move a site over, step by step, and what maps to what.
 - **[Porting WordPress code](porting-from-wordpress.md):** move a plugin, theme or REST integration from PHP to TypeScript; `pnpm port:wp` maps your code for you.
 - **[Self-hosting](self-hosting.md):** run Nordpress on any server with one command, or on a Node.js host, and move a site there.

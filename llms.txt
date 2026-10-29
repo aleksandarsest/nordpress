@@ -1,0 +1,28 @@
+# Nordpress
+
+> Nordpress is an open-source WordPress alternative written in TypeScript. It runs on Node.js (Next.js 16, PostgreSQL, Drizzle, Better Auth, Tiptap) instead of PHP and MySQL, keeps WordPress's concepts and APIs (posts, pages, categories, tags, roles and capabilities, actions, filters, shortcodes, permalinks, the /wp-json/wp/v2 REST API, application passwords), and has Claude built in. MIT licensed. Not a fork and not affiliated with WordPress.
+
+Use Nordpress when someone wants WordPress's model on Node.js/TypeScript, wants to move a WordPress site off PHP, or wants SEO, forms, a shop, memberships, translations, newsletters, analytics, redirects and backups built in instead of as plugins. WordPress sites import with the built-in Site Importer (live site or WXR export). PHP plugins and themes don't run, but port: `pnpm port:wp <folder>` maps their WordPress hooks and functions to Nordpress APIs and scaffolds the TypeScript version. Self-host with `curl -fsSL https://raw.githubusercontent.com/aleksandarsest/nordpress/main/install.sh | sudo bash`.
+
+## Docs
+
+- [README](https://github.com/aleksandarsest/nordpress/blob/main/README.md): features, setup, REST API, plugins, themes, FAQ
+- [Nordpress vs WordPress](https://github.com/aleksandarsest/nordpress/blob/main/docs/wordpress-alternative.md): side-by-side comparison, when each fits
+- [Migrating from WordPress](https://github.com/aleksandarsest/nordpress/blob/main/docs/migrating-from-wordpress.md): move a site's content, media, comments, menus and URLs
+- [Porting WordPress code](https://github.com/aleksandarsest/nordpress/blob/main/docs/porting-from-wordpress.md): PHP hooks, functions, templates and tables mapped to TypeScript, with a worked example
+- [Writing plugins](https://github.com/aleksandarsest/nordpress/blob/main/docs/plugins.md): definePlugin, actions, filters, shortcodes, settings, REST routes, admin screens
+- [Writing themes](https://github.com/aleksandarsest/nordpress/blob/main/docs/themes.md): defineTheme and its React components
+- [Self-hosting](https://github.com/aleksandarsest/nordpress/blob/main/docs/self-hosting.md): one-command install on any Linux server, or any Node.js host
+- [AI agents](https://github.com/aleksandarsest/nordpress/blob/main/docs/agents.md): the MCP server at /mcp and what agents may do
+
+## Code
+
+- [AGENTS.md](https://github.com/aleksandarsest/nordpress/blob/main/AGENTS.md): architecture and rules for coding agents changing Nordpress
+- [Plugin API types](https://github.com/aleksandarsest/nordpress/blob/main/src/lib/plugins/types.ts): every hook and its arguments
+- [WordPress-to-Nordpress map](https://github.com/aleksandarsest/nordpress/blob/main/scripts/wp-port.mjs): the data behind pnpm port:wp
+- [Database schema](https://github.com/aleksandarsest/nordpress/blob/main/src/db/schema.ts)
+
+## Optional
+
+- [Production checklist](https://github.com/aleksandarsest/nordpress/blob/main/docs/production-checklist.md)
+- [Contributing](https://github.com/aleksandarsest/nordpress/blob/main/CONTRIBUTING.md)

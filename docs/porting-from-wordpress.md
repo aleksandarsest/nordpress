@@ -305,7 +305,7 @@ For new integrations, the MCP server at `/mcp` is usually a better fit than REST
 
 ## Not there yet
 
-Some WordPress features have no Nordpress equivalent yet. Work around them as below, or open an issue if your port needs one.
+Some WordPress features have no Nordpress equivalent yet. Work around them as below, or open a [Missing WordPress feature](https://github.com/aleksandarsest/nordpress/issues/new?template=wordpress-feature.md) issue if your port needs one.
 
 - **Custom post types and taxonomies:** use a category and post meta, or your own table.
 - **Plugin output in every page's `<head>` or footer** (`wp_head`, `wp_enqueue_script`): put it in the theme's `Layout`.

@@ -2,6 +2,28 @@
   "name": "nordpress",
   "version": "0.1.0",
   "private": true,
+  "description": "Open-source WordPress alternative in TypeScript: a CMS on Node.js, Next.js and PostgreSQL with WordPress's concepts, REST API and importer, and Claude built in.",
+  "keywords": [
+    "wordpress",
+    "wordpress-alternative",
+    "wordpress-migration",
+    "cms",
+    "typescript",
+    "nodejs",
+    "nextjs",
+    "postgresql",
+    "blog",
+    "headless-cms",
+    "mcp",
+    "claude"
+  ],
+  "homepage": "https://github.com/aleksandarsest/nordpress#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aleksandarsest/nordpress.git"
+  },
+  "bugs": "https://github.com/aleksandarsest/nordpress/issues",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "dev:embedded": "node scripts/embedded-db.mjs next dev",
