@@ -8,6 +8,8 @@ pnpm new:plugin event-calendar "Event Calendar"
 
 Activate it under **Plugins**. Plugins are compiled with the site, so they're type-checked and can use anything in `src/lib`.
 
+Porting a WordPress plugin? `pnpm port:wp <folder> --scaffold <slug>` starts it for you; see [Porting WordPress code](porting-from-wordpress.md).
+
 ## The definition
 
 ```ts
@@ -68,6 +70,19 @@ register(api) {
 }
 ```
 
+## Shortcodes
+
+```ts
+api.addShortcode("note", (attrs, content, { post }) => {
+  const { type } = { type: "info", ...attrs };
+  return `<aside class="note note-${escapeHtml(type)}">${content ?? ""}</aside>`;
+});
+```
+
+This expands `[note type="tip"]Text[/note]` and `[note /]` in post HTML on the site, in feeds and in newsletters, parsed the way WordPress parses shortcodes. Escape attributes with `escapeHtml()` from `@/lib/plugins/shortcodes`; what you return is inserted as HTML.
+
+## Other helpers
+
 `api.defer()` runs work after the response is sent; use it for anything slow. `api.settings()` returns the plugin's saved settings merged over the defaults. `api.log()` prefixes messages with the plugin's name.
 
 ## Settings
@@ -106,4 +121,5 @@ The screen lives at `/admin/tools/<slug>/<path>` and appears under **Tools** whi
 - `reading-time`: a filter, settings and a REST route.
 - `webhooks`: actions and deferred HTTP calls.
 - `comment-blocklist`: the `comment.status` filter.
+- `reading-time` also has a `[reading_time]` shortcode.
 - `wordpress-importer` (the Site Importer): an admin screen and a long-running job; it copies WordPress through its API or an export file, and any other site page by page.

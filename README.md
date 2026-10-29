@@ -5,7 +5,16 @@ categories and tags, media, users with WordPress's roles, settings, and a
 public theme with WordPress-compatible permalinks, threaded comments, and a
 WordPress-compatible REST API, plus AI writing tools powered by Claude.
 
-**Documentation:** [migrating from WordPress](docs/migrating-from-wordpress.md) · [production checklist](docs/production-checklist.md) · [AI agents](docs/agents.md) · [plugins](docs/plugins.md) · [themes](docs/themes.md) · [contributing](CONTRIBUTING.md)
+**Documentation:** [migrating from WordPress](docs/migrating-from-wordpress.md) · [porting WordPress code](docs/porting-from-wordpress.md) · [production checklist](docs/production-checklist.md) · [AI agents](docs/agents.md) · [plugins](docs/plugins.md) · [themes](docs/themes.md) · [contributing](CONTRIBUTING.md)
+
+## Coming from WordPress?
+
+Nordpress keeps WordPress's model (posts and pages, categories and tags, roles and capabilities, actions and filters, shortcodes, permalinks, `/wp-json/wp/v2`) on Node.js and TypeScript, so both sites and code move across:
+
+- **A site:** the Site Importer copies a live WordPress site or an export file, with media, comments, menus and redirects from the old URLs. [Migrating from WordPress](docs/migrating-from-wordpress.md).
+- **A plugin or theme:** `pnpm port:wp <folder>` lists every WordPress hook and function the PHP uses and where each goes here, and `--scaffold` starts the TypeScript version with a checklist. [Porting WordPress code](docs/porting-from-wordpress.md) maps hooks, functions, templates and tables, with a plugin ported line by line.
+- **An app or script on the REST API:** most `/wp-json/wp/v2` clients keep working with an application password. [REST API](#rest-api-wp-jsonwpv2).
+- **Plugins you won't need:** SEO, forms, a shop, memberships, translations, newsletters, analytics, redirects and backups are built in.
 
 ## Stack
 
@@ -148,6 +157,8 @@ Logins (per IP and per account), password reset requests, Better Auth's own endp
 - `pnpm db:generate`: create a migration after editing `src/db/schema.ts`
 - `pnpm db:migrate`: apply migrations
 - `pnpm test`, `pnpm typecheck`, `pnpm lint`
+- `pnpm new:plugin` / `pnpm new:theme`: start a plugin or theme
+- `pnpm port:wp <folder> [--scaffold <slug>]`: report what a WordPress plugin or theme uses and where it goes here, and optionally start the port
 
 ## Layout
 
@@ -276,14 +287,21 @@ export default definePlugin({
 | `comment.created`              | action | After a comment is stored                                                      |
 | `media.uploaded`               | action | After a file is uploaded                                                       |
 | `user.created`                 | action | After a user account is created                                                |
+| `form.submitted`               | action | After a form submission passes spam triage                                     |
+| `newsletter.subscribed`        | action | After someone confirms a newsletter subscription                               |
+| `post.contentHtml`             | filter | Post body HTML on the public site, in the RSS feed and in newsletters          |
+| `post.markdown`                | filter | The Markdown copy of a post served to AI agents                                |
+| `comment.status`               | filter | Status for a new comment from a non-moderator (`approved`, `pending`, `spam`)  |
 
 `post.saved` includes `source` (`"app"` or `"import"`) so plugins can skip bulk imports. Plugins can also add admin screens (`adminPages`), which appear under **Tools**.
-| `post.contentHtml` | filter | Post body HTML on the public site and in the RSS feed |
-| `comment.status` | filter | Status for a new comment from a non-moderator (`approved`, `pending`, `spam`) |
+
+**Shortcodes** work as in WordPress: `api.addShortcode("note", (attrs, content, { post }) => html)` expands `[note type="tip"]…[/note]` in post HTML, with WordPress's parsing rules, so `[shortcodes]` in imported posts render again once a plugin registers them.
 
 Hooks run in priority order (lower first, default 10). An error in one plugin is logged and skipped; it never breaks the page or the other plugins. Use `api.defer()` for slow work so it runs after the response. Plugins can declare their own hooks by augmenting `ActionHooks` / `FilterHooks` in `src/lib/plugins/types.ts`.
 
-Bundled examples: **Reading Time**, **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
+Porting a WordPress plugin? `pnpm port:wp <folder>` maps its PHP to these APIs; see [Porting WordPress code](docs/porting-from-wordpress.md).
+
+Bundled examples: **Reading Time** (with a `[reading_time]` shortcode), **Comment Blocklist** and **Webhooks** (signed `POST` requests on publish or new comments).
 
 ## Video embeds
 
@@ -516,7 +534,7 @@ A WordPress site is read through its REST API instead, which brings more. If its
 - **Safe to re-run:** anything already imported is skipped. Imports don't trigger publish webhooks.
 - **Old links keep working:** URLs like `/2024/05/my-post/` and `/my-post/` redirect to the new address. Old numeric `?p=123` links do not; the original IDs are stored in each post's `meta.wpId`.
 - **Menus:** recreated with their nesting, custom labels and new-tab links. Links to the old domain become site-relative. Exports don't record menu locations, so assign the menus under **Appearance → Menus**.
-- **Not imported:** custom post types, revisions, shortcode output (shortcodes stay as text) and password protection (protected posts become private).
+- **Not imported:** custom post types, revisions, shortcode output (shortcodes stay as text until a plugin registers them with `api.addShortcode()`) and password protection (protected posts become private).
 
 Media downloads refuse private and loopback network addresses, so an export file can't make the server fetch internal URLs. The importer's settings can allow them for a WordPress install on your own network.
 
@@ -549,6 +567,9 @@ The flood check uses the `X-Forwarded-For` header, so run the app behind a rever
 | Newsletter plugins (MailPoet, Jetpack Subscribe)   | `subscribers` + `newsletters`, `src/lib/newsletter`, built in                               |
 | Backup plugins (UpdraftPlus, Jetpack VaultPress)   | **Tools → Backups**, `src/lib/backup`, built in                                             |
 | Themes and `theme_mods`                            | `src/themes/*`, options saved as `theme:<slug>`                                             |
+| `add_shortcode()`                                  | `api.addShortcode()`, `src/lib/plugins/shortcodes.ts`                                       |
+
+Porting code rather than content? [Porting WordPress code](docs/porting-from-wordpress.md) maps hooks, functions and templates, and `pnpm port:wp` does it for a specific plugin or theme.
 
 ## License
 

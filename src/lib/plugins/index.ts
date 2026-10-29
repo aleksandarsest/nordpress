@@ -7,6 +7,7 @@ import { options } from "@/db/schema";
 import { installedPlugins } from "@/plugins";
 import { getSettings, SETTINGS_TAG } from "../options";
 import { HookRegistry, matchPath } from "./hook-registry";
+import { expandShortcodes } from "./shortcodes";
 import type {
   ActionHooks,
   ActionName,
@@ -44,6 +45,16 @@ function apiFor(plugin: PluginDefinition): PluginApi {
       hooks.add("action", name, plugin.slug, fn as never, priority),
     addFilter: (name, fn, priority) =>
       hooks.add("filter", name, plugin.slug, fn as never, priority),
+    // Priority 11, after other content filters, as WordPress runs do_shortcode
+    addShortcode: (tag, fn) =>
+      hooks.add(
+        "filter",
+        "post.contentHtml",
+        plugin.slug,
+        ((html: string, context: Parameters<typeof fn>[2]) =>
+          expandShortcodes(html, { [tag]: fn }, context)) as never,
+        11,
+      ),
     settings: () => getPluginSettings(plugin.slug),
     defer: (fn) =>
       after(async () => {

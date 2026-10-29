@@ -10,5 +10,11 @@ export default defineConfig({
       ),
     },
   },
-  test: { include: ["src/**/*.test.ts", "platform/**/*.test.ts"] },
+  test: {
+    include: [
+      "src/**/*.test.ts",
+      "platform/**/*.test.ts",
+      "scripts/**/*.test.ts",
+    ],
+  },
 });

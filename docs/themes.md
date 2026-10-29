@@ -6,7 +6,7 @@ A theme decides how the site looks; Nordpress core does everything else (routing
 pnpm new:theme sunrise "Sunrise" --from nord
 ```
 
-Then switch to it under **Appearance → Themes** and edit `src/themes/sunrise/`.
+Then switch to it under **Appearance → Themes** and edit `src/themes/sunrise/`. To port a WordPress theme, `pnpm port:wp <theme folder> --scaffold <slug>` does this and maps each template to its component; see [Porting WordPress code](porting-from-wordpress.md#porting-a-theme).
 
 ## The definition
 

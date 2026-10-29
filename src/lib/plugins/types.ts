@@ -11,6 +11,7 @@ import type {
 } from "@/db/schema";
 import type { Capability } from "../capabilities";
 import type { Viewer } from "../session";
+import type { ShortcodeHandler } from "./shortcodes";
 
 // ---------------------------------------------------------------------------
 // Hooks: every action and filter core fires, with its arguments.
@@ -156,6 +157,14 @@ export type PluginApi = {
       ...args: FilterHooks[N]
     ) => FilterHooks[N][0] | Promise<FilterHooks[N][0]>,
     priority?: number,
+  ): void;
+  /**
+   * Expands [tag attr="x"] and [tag]...[/tag] in post HTML, like WordPress's
+   * add_shortcode(). Return HTML, and escape attributes with escapeHtml().
+   */
+  addShortcode(
+    tag: string,
+    fn: ShortcodeHandler<FilterHooks["post.contentHtml"][1]>,
   ): void;
   /** This plugin's saved settings, merged over the field defaults. */
   settings(): Promise<PluginSettings>;

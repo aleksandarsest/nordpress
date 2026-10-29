@@ -24,7 +24,7 @@ Media is downloaded from the old site, so keep it online until the import finish
 
 ## 3. Check what came across
 
-- **Shortcodes** (`[gallery]`, `[contact-form-7]` …) arrive as plain text: WordPress plugins don't run here. Replace them with the Nordpress equivalent (see the table below) or remove them.
+- **Shortcodes** (`[gallery]`, `[contact-form-7]` …) arrive as plain text: WordPress plugins don't run here. Replace them with the Nordpress equivalent (see the table below), remove them, or register the tag in a plugin with `api.addShortcode()` so they render again ([Porting WordPress code](porting-from-wordpress.md#shortcodes)).
 - **Page builders** (Elementor, Divi …) store layouts in their own format; the importer keeps the text, not the layout.
 - **Password-protected posts** become private posts.
 - Re-create **menus** under **Appearance → Menus** if you imported from a live site, and assign them to the theme's locations either way.
@@ -51,4 +51,4 @@ Point your domain at the new server, set `SITE_URL` and `BETTER_AUTH_URL` to it,
 | Broken Link Checker                    | The **Inbox**'s daily checks                                                              |
 | Redirection (for old URLs)             | Automatic redirects from old permalinks                                                   |
 
-For anything else, a plugin is a TypeScript file: see [Writing plugins](plugins.md).
+For anything else, a plugin is a TypeScript file: see [Writing plugins](plugins.md). To port one you have, run `pnpm port:wp` on it and follow [Porting WordPress code](porting-from-wordpress.md).

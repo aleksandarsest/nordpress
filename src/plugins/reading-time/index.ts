@@ -1,3 +1,4 @@
+import { escapeHtml } from "@/lib/plugins/shortcodes";
 import { definePlugin } from "@/lib/plugins/types";
 
 export function readingMinutes(text: string, wordsPerMinute: number) {
@@ -10,7 +11,7 @@ export default definePlugin({
   name: "Reading Time",
   version: "1.0.0",
   description:
-    "Shows an estimated reading time at the top of posts. A small example of a content filter, plugin settings and a REST route.",
+    "Shows an estimated reading time at the top of posts, or wherever you write [reading_time]. A small example of a content filter, a shortcode, plugin settings and a REST route.",
   author: "Nordpress",
   settings: [
     {
@@ -49,6 +50,17 @@ export default definePlugin({
         Number(settings.wordsPerMinute),
       );
       return `<p class="reading-time"><em>${minutes} min read</em></p>${html}`;
+    });
+
+    // [reading_time] or [reading_time label="Reading time:"], anywhere in a post
+    api.addShortcode("reading_time", async (attrs, _content, { post }) => {
+      const settings = await api.settings();
+      const minutes = readingMinutes(
+        post.contentText,
+        Number(settings.wordsPerMinute),
+      );
+      const label = attrs.label ? `${escapeHtml(attrs.label)} ` : "";
+      return `<span class="reading-time">${label}${minutes} min</span>`;
     });
   },
 });

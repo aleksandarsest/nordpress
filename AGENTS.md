@@ -8,6 +8,7 @@ Nordpress is a WordPress-style CMS on Next.js 16 (App Router, Cache Components),
 - `pnpm lint` (Biome), `pnpm typecheck`, `pnpm test` (Vitest), `pnpm build`. Run all four before calling work done.
 - `pnpm db:generate` after changing `src/db/schema.ts`, then `pnpm db:migrate`.
 - `pnpm new:plugin <slug> ["Name"]` and `pnpm new:theme <slug> ["Name"] [--from classic|nord]` scaffold and register a plugin or theme.
+- `pnpm port:wp <folder> [--scaffold <slug>]` maps a WordPress plugin or theme's PHP to Nordpress APIs (mapping in `scripts/wp-port.mjs`) and can scaffold the port with a `PORTING.md` checklist.
 
 ## Where things live
 
@@ -28,7 +29,8 @@ Nordpress is a WordPress-style CMS on Next.js 16 (App Router, Cache Components),
 
 ## Extending
 
-- **Plugins** (`definePlugin` in `src/lib/plugins/types.ts`) get typed hooks (`post.saved`, `post.contentHtml`, `post.markdown`, `comment.created`, `comment.status`, `form.submitted`, ...), settings fields shown in the admin, REST routes at `/wp-json/<slug>/v1/...`, and admin screens under Tools. Use `api.defer()` for slow work and skip side effects when `source === "import"`. Examples: `reading-time` (filter, settings, route), `webhooks` (actions, deferred HTTP), `wordpress-importer` (admin screen, long-running job).
+- **Plugins** (`definePlugin` in `src/lib/plugins/types.ts`) get typed hooks (`post.saved`, `post.contentHtml`, `post.markdown`, `comment.created`, `comment.status`, `form.submitted`, ...), settings fields shown in the admin, REST routes at `/wp-json/<slug>/v1/...`, and admin screens under Tools. Use `api.defer()` for slow work and skip side effects when `source === "import"`. `api.addShortcode()` registers WordPress-style shortcodes. Examples: `reading-time` (filter, shortcode, settings, route), `webhooks` (actions, deferred HTTP), `wordpress-importer` (admin screen, long-running job).
+- **Porting from WordPress:** follow `PORTING.md` in the plugin or theme folder and `docs/porting-from-wordpress.md`. Port behaviour, not structure: hooks become typed `api.addAction`/`api.addFilter`/`api.addShortcode` calls, options become `settings` fields, nonces and `esc_*` calls go away (keep capability checks), and `$wpdb` becomes Drizzle. When something has no equivalent, say so in the plugin rather than faking it. If you add a hook to core for a port, add it to `scripts/wp-port.mjs` and the guide too.
 - **Themes** (`defineTheme` in `src/lib/themes/types.ts`) provide React server components (`Layout`, `Single`, `PostList`, `ArchiveHeader`, `Paging`, `SearchForm`, `Empty`), menu locations and settings. Core does routing, data loading, comments, forms, structured data and plugin filters, so themes only decide presentation. Start from `pnpm new:theme`.
 - **Agent tools** live in `createAgentTools` (`src/lib/agent/tools.ts`). A tool added there appears in both MCP and the admin assistant. Write tools need `kind: "write"` and a `preview()`, which the assistant shows before asking the user to approve. Respect `ctx.canChangeLive`.
 - **AI features:** get the client and settings from `aiContext()`, pass `fallbackParams(model)`, record usage with `recordUsage`, map errors with `toAiError`, and add the site's voice with `withGuidance()`. Prefer structured outputs (`betaZodOutputFormat`) over parsing text. Treat model output and visitor-written text as untrusted.

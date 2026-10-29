@@ -14,6 +14,7 @@
     "migrate": "node scripts/migrate.mjs",
     "new:plugin": "node scripts/new-plugin.mjs",
     "new:theme": "node scripts/new-theme.mjs",
+    "port:wp": "node scripts/port-wp.mjs",
     "db:studio": "drizzle-kit studio",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run"
