@@ -4,7 +4,7 @@
 
 It has what a WordPress site uses: posts, pages, categories and tags, media, users with WordPress's roles and capabilities, WordPress-compatible permalinks, threaded comments, menus, themes, plugins with actions, filters and shortcodes, and a WordPress-compatible REST API. Built in, where WordPress needs plugins: SEO, forms, a shop, memberships, translations, newsletters, analytics, redirects, backups, two-factor sign-in, an MCP server for AI agents, and AI writing tools. [How it compares to WordPress](docs/wordpress-alternative.md).
 
-**Documentation:** [migrating from WordPress](docs/migrating-from-wordpress.md) · [porting WordPress code](docs/porting-from-wordpress.md) · [production checklist](docs/production-checklist.md) · [AI agents](docs/agents.md) · [plugins](docs/plugins.md) · [themes](docs/themes.md) · [contributing](CONTRIBUTING.md)
+**Documentation:** [getting started](docs/getting-started.md) · [migrating from WordPress](docs/migrating-from-wordpress.md) · [porting WordPress code](docs/porting-from-wordpress.md) · [production checklist](docs/production-checklist.md) · [AI agents](docs/agents.md) · [plugins](docs/plugins.md) · [themes](docs/themes.md) · [contributing](CONTRIBUTING.md)
 
 ## Coming from WordPress?
 
@@ -29,6 +29,16 @@ Nordpress keeps WordPress's model (posts and pages, categories and tags, roles a
 | Tooling   | Biome, Vitest                                                           |
 
 ## Getting started
+
+[Getting started](docs/getting-started.md) walks through trying Nordpress locally, putting a site online, your first ten minutes in the admin, and moving from WordPress. The quickest local try uses the built-in database, so there's nothing else to install:
+
+```bash
+pnpm install
+cp .env.example .env.local   # set BETTER_AUTH_SECRET
+pnpm dev:embedded
+```
+
+With PostgreSQL instead:
 
 ```bash
 nvm use

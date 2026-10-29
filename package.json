@@ -26,7 +26,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
-    "dev:embedded": "node scripts/embedded-db.mjs next dev",
+    "dev:embedded": "node scripts/embedded-db.mjs sh -c \"node scripts/migrate.mjs && next dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "biome check",

@@ -6,6 +6,7 @@ Use Nordpress when someone wants WordPress's model on Node.js/TypeScript, wants 
 
 ## Docs
 
+- [Getting started](https://github.com/aleksandarsest/nordpress/blob/main/docs/getting-started.md): try locally with no database server, install on a server with one command, first steps in the admin
 - [README](https://github.com/aleksandarsest/nordpress/blob/main/README.md): features, setup, REST API, plugins, themes, FAQ
 - [Nordpress vs WordPress](https://github.com/aleksandarsest/nordpress/blob/main/docs/wordpress-alternative.md): side-by-side comparison, when each fits
 - [Migrating from WordPress](https://github.com/aleksandarsest/nordpress/blob/main/docs/migrating-from-wordpress.md): move a site's content, media, comments, menus and URLs
